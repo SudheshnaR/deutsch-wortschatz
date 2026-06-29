@@ -1,0 +1,105 @@
+# ============================================================
+#  Codemagic build config — builds BOTH Android and iOS
+#  in the cloud (Codemagic runs a Mac for the iOS build,
+#  so you do NOT need to own a Mac).
+#
+#  How to use:
+#   1. Push this whole project to a GitHub/GitLab/Bitbucket repo.
+#   2. Sign up at https://codemagic.io and connect the repo.
+#   3. Run the "android-test" workflow first — it needs no
+#      Apple account and produces an installable APK.
+#   4. For iOS, add your Apple Developer credentials in the
+#      Codemagic UI (Teams > Integrations), then run "ios-release".
+# ============================================================
+workflows:
+
+  # ---------- ANDROID: produces a debug APK you can sideload ----------
+  android-test:
+    name: Android debug APK
+    instance_type: linux_x2
+    max_build_duration: 30
+    environment:
+      node: 20
+    scripts:
+      - name: Install dependencies
+        script: npm install
+      - name: Add Android platform
+        script: npx cap add android || echo "android already present"
+      - name: Sync web assets
+        script: npx cap sync android
+      - name: Build debug APK
+        script: |
+          cd android
+          chmod +x ./gradlew
+          ./gradlew assembleDebug
+    artifacts:
+      - android/app/build/outputs/**/*.apk
+    publishing:
+      email:
+        recipients:
+          - YOUR_EMAIL_HERE   # <-- the APK is emailed to you here
+
+  # ---------- iOS: builds on a real Mac in the cloud ----------
+  # Requires an Apple Developer Program account ($99/yr) configured
+  # in Codemagic. For first tests you can use the iOS Simulator build
+  # below, which needs NO Apple account.
+  ios-simulator-test:
+    name: iOS simulator build (no Apple account needed)
+    instance_type: mac_mini_m2
+    max_build_duration: 45
+    environment:
+      node: 20
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Install dependencies
+        script: npm install
+      - name: Add iOS platform
+        script: npx cap add ios || echo "ios already present"
+      - name: Sync web assets
+        script: npx cap sync ios
+      - name: Build for simulator
+        script: |
+          cd ios/App
+          xcodebuild -workspace App.xcodeproj/project.xcworkspace \
+            -scheme App -sdk iphonesimulator -configuration Debug \
+            -derivedDataPath build || \
+          xcodebuild -project App.xcodeproj -scheme App \
+            -sdk iphonesimulator -configuration Debug -derivedDataPath build
+    artifacts:
+      - ios/App/build/**/*.app
+
+  # ---------- iOS RELEASE: signed build for TestFlight / App Store ----------
+  ios-release:
+    name: iOS release (TestFlight / App Store)
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    integrations:
+      app_store_connect: YOUR_APP_STORE_CONNECT_KEY   # set up in Codemagic UI
+    environment:
+      node: 20
+      xcode: latest
+      cocoapods: default
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.sudheshna.deutschwortschatz
+    scripts:
+      - name: Install dependencies
+        script: npm install
+      - name: Add iOS platform
+        script: npx cap add ios || echo "ios already present"
+      - name: Sync web assets
+        script: npx cap sync ios
+      - name: Set up signing
+        script: xcode-project use-profiles
+      - name: Build signed IPA
+        script: |
+          xcode-project build-ipa \
+            --workspace "ios/App/App.xcworkspace" \
+            --scheme "App"
+    artifacts:
+      - build/ios/ipa/*.ipa
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true

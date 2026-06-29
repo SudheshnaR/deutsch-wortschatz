@@ -1,0 +1,24 @@
+{
+  "appId": "com.sudheshna.deutschwortschatz",
+  "appName": "Deutsch Wortschatz",
+  "webDir": "www",
+  "backgroundColor": "#0f1117",
+  "ios": {
+    "contentInset": "always",
+    "backgroundColor": "#0f1117"
+  },
+  "android": {
+    "backgroundColor": "#0f1117"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 800,
+      "backgroundColor": "#0f1117",
+      "showSpinner": false
+    },
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#0f1117"
+    }
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "name": "deutsch-wortschatz",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Deutsch Wortschatz \u2014 German vocabulary learning app (A1\u2013C1) with spaced repetition, games, and audio.",
+  "scripts": {
+    "dev": "npx serve www",
+    "sync": "npx cap sync",
+    "open:ios": "npx cap open ios",
+    "open:android": "npx cap open android",
+    "add:ios": "npx cap add ios",
+    "add:android": "npx cap add android",
+    "icons": "npx @capacitor/assets generate --assetPath assets"
+  },
+  "dependencies": {
+    "@capacitor/core": "^6.1.2",
+    "@capacitor/ios": "^6.1.2",
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/preferences": "^6.0.2",
+    "@capacitor/filesystem": "^6.0.1",
+    "@capacitor/share": "^6.0.2",
+    "@capacitor/splash-screen": "^6.0.2",
+    "@capacitor/status-bar": "^6.0.1"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.1.2",
+    "@capacitor/assets": "^3.0.5",
+    "serve": "^14.2.3"
+  }
+}
