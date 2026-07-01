@@ -21,7 +21,8 @@
     "@capacitor/share": "^6.0.2",
     "@capacitor/splash-screen": "^6.0.2",
     "@capacitor/status-bar": "^6.0.1",
-    "@capacitor-community/text-to-speech": "^5.1.0"
+    "@capacitor-community/text-to-speech": "^5.1.0",
+    "@capacitor-community/speech-recognition": "^6.0.1"
   },
   "devDependencies": {
     "@capacitor/cli": "^6.1.2",

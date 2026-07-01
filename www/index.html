@@ -235,6 +235,25 @@ nav button.active{color:var(--accent)}
 .es-chip{font-size:12px;font-weight:600;background:var(--bg2);border:1px solid var(--line);border-radius:9px;padding:5px 9px}
 .es-chip .es-en{color:var(--dim);font-weight:400}
 .es-speak{position:absolute;top:14px;right:14px;width:38px;height:38px;font-size:17px}
+
+/* ===== TALK — hands-free speaking practice ===== */
+.talk-msg{max-width:86%;padding:12px 16px;border-radius:16px;margin-bottom:10px;line-height:1.5;font-size:15px}
+.talk-msg.bot{background:var(--card);border:1px solid var(--line);border-bottom-left-radius:4px;cursor:pointer}
+.talk-msg.user{background:rgba(90,209,168,.14);border:1px solid rgba(90,209,168,.4);margin-left:auto;border-bottom-right-radius:4px}
+.talk-msg.user.wrong{background:rgba(255,206,92,.12);border-color:rgba(255,206,92,.4)}
+.talk-msg .ten{font-size:12px;color:var(--dim);margin-top:6px;display:none}
+.talk-msg.show-en .ten{display:block}
+.talk-mic{display:flex;align-items:center;justify-content:center;width:88px;height:88px;border-radius:50%;border:none;background:linear-gradient(140deg,var(--accent),var(--accent-d));color:#0f1117;font-size:34px;margin:18px auto 8px;cursor:pointer;box-shadow:0 8px 30px rgba(90,209,168,.35)}
+.talk-mic.listening{animation:talkPulse 1.2s infinite}
+@keyframes talkPulse{0%{box-shadow:0 0 0 0 rgba(90,209,168,.55)}70%{box-shadow:0 0 0 24px rgba(90,209,168,0)}100%{box-shadow:0 0 0 0 rgba(90,209,168,0)}}
+.talk-status{text-align:center;font-size:13px;color:var(--dim);margin-bottom:6px;min-height:18px}
+.talk-toolbar{display:flex;gap:8px;margin:12px 0 4px;flex-wrap:wrap}
+.talk-toolbar .btn{flex:1;min-width:0}
+.hf-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;background:var(--card);border:1px solid var(--line);border-radius:14px;margin-bottom:14px;font-size:13px;font-weight:600}
+.hf-switch{position:relative;width:44px;height:24px;background:var(--line);border-radius:12px;cursor:pointer;transition:.2s;flex-shrink:0}
+.hf-switch.on{background:var(--accent)}
+.hf-switch .kn{position:absolute;top:2px;left:2px;width:20px;height:20px;background:#fff;border-radius:50%;transition:.2s}
+.hf-switch.on .kn{transform:translateX(20px)}
 </style>
 </head>
 <body>
@@ -243,6 +262,7 @@ nav button.active{color:var(--accent)}
 <nav style="display:none" id="nav">
   <button class="active" data-s="home" onclick="showScreen('home')"><span class="ic">🏠</span>Home</button>
   <button data-s="study" onclick="showScreen('study')"><span class="ic">📚</span>Study</button>
+  <button data-s="talk" onclick="showScreen('talk')"><span class="ic">🎙️</span>Talk</button>
   <button data-s="review" onclick="showScreen('review')"><span class="ic">🔁</span>Review</button>
   <button data-s="games" onclick="showScreen('games')"><span class="ic">🎮</span>Games</button>
   <button data-s="stories" onclick="showScreen('stories')"><span class="ic">📕</span>Stories</button>
@@ -5308,6 +5328,7 @@ function buildSession(reviewsOnly){
    ========================================================= */
 function showScreen(id){
   if(typeof stopStoryAudio==='function' && id!=='stories') stopStoryAudio();
+  if(typeof stopTalk==='function' && id!=='talk') stopTalk();
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   const el=document.getElementById('screen-'+id);
   if(el) el.classList.add('active');
@@ -5319,6 +5340,7 @@ function showScreen(id){
   if(id==='history') renderHistory();
   if(id==='games') renderGames();
   if(id==='stories') renderStories();
+  if(id==='talk') renderTalk();
   if(id==='mnemonics') renderMnemonics();
   if(id==='browse') renderBrowse();
   if(id==='settings') renderSettings();
@@ -6189,6 +6211,7 @@ function closeModal(){ document.getElementById('overlay').classList.remove('show
   document.getElementById('app').innerHTML=`
     <section id="screen-home" class="screen active"></section>
     <section id="screen-study" class="screen"></section>
+    <section id="screen-talk" class="screen"></section>
     <section id="screen-review" class="screen"></section>
     <section id="screen-history" class="screen"></section>
     <section id="screen-games" class="screen"></section>
@@ -6777,6 +6800,285 @@ function answerStoryQuiz(i){
   btns.forEach((b,bi)=>{ if(bi===q.answer)b.classList.add('correct'); else if(bi===i)b.classList.add('wrong'); else b.classList.add('dim'); b.onclick=null; });
   if(i===q.answer) sqScore++;
   setTimeout(()=>{ sqIdx++; renderStoryQuiz(); }, 1050);
+}
+
+/* =========================================================
+   TALK — hands-free speaking practice (offline, scripted dialogues)
+   ========================================================= */
+const SCENARIOS=[
+  {id:'sich-vorstellen', level:'A1', icon:'👋', title:'Sich vorstellen', desc:'Meet someone new and introduce yourself',
+    turns:[
+      {bot:'Hallo! Ich heiße Lena. Und wie heißt du?', botEn:"Hi! My name is Lena. And what's your name?", free:true},
+      {bot:'Freut mich! Woher kommst du?', botEn:'Nice to meet you! Where are you from?', free:true},
+      {bot:'Wie alt bist du, wenn ich fragen darf?', botEn:'How old are you, if I may ask?', free:true},
+      {bot:'Was machst du beruflich?', botEn:'What do you do for work?', free:true},
+      {bot:"Das klingt spannend! Ich muss jetzt los. Tschüss und bis bald!", botEn:'That sounds exciting! I have to go now. Bye, see you soon!',
+        accept:[['tschüss'],['ciao'],['bis','bald'],['auf','wiedersehen'],["mach's",'gut']], hint:'Tschüss, bis bald!'}
+    ]},
+  {id:'im-cafe', level:'A1', icon:'☕', title:'Im Café', desc:'Order a drink and a snack',
+    turns:[
+      {bot:'Guten Tag! Was möchten Sie trinken?', botEn:'Good day! What would you like to drink?',
+        accept:[['kaffee'],['tee'],['wasser'],['saft'],['cola'],['ich','möchte'],['ich','hätte','gern']], hint:'Ich möchte einen Kaffee, bitte.'},
+      {bot:'Gerne. Möchten Sie auch etwas essen?', botEn:'Sure. Would you also like something to eat?',
+        accept:[['ja'],['nein'],['kuchen'],['nichts'],['danke']], hint:'Ja, ein Stück Kuchen bitte.'},
+      {bot:'Kommt sofort! ... So, das macht zusammen fünf Euro.', botEn:"Coming right up! ... So, that's five euros in total.",
+        accept:[['danke'],['hier','bitte'],['okay']], hint:'Danke, hier bitte.'},
+      {bot:'Vielen Dank! Einen schönen Tag noch!', botEn:'Thank you! Have a nice day!',
+        accept:[['danke'],['ihnen','auch'],['ebenfalls'],['gleichfalls']], hint:'Danke, Ihnen auch!'}
+    ]},
+  {id:'nach-dem-weg', level:'A2', icon:'🧭', title:'Nach dem Weg fragen', desc:'Ask a stranger for directions',
+    turns:[
+      {bot:'Entschuldigen Sie, kann ich Ihnen helfen?', botEn:'Excuse me, can I help you?',
+        accept:[['bahnhof'],['wo','ist'],['wie','komme'],['suche']], hint:'Ja, wo ist der Bahnhof, bitte?'},
+      {bot:'Der Bahnhof ist nicht weit. Gehen Sie geradeaus und dann an der Ampel links.', botEn:"The train station isn't far. Go straight ahead and then left at the traffic light.",
+        accept:[['danke'],['vielen','dank'],['verstanden']], hint:'Vielen Dank für Ihre Hilfe!'},
+      {bot:'Kein Problem! Ist das alles, oder suchen Sie noch etwas?', botEn:'No problem! Is that all, or are you looking for something else?',
+        accept:[['ja'],['nein'],['das','alles'],['das','war','alles']], hint:'Nein, das war alles, danke.'},
+      {bot:'Dann wünsche ich Ihnen einen schönen Tag!', botEn:'Then I wish you a nice day!',
+        accept:[['danke'],['ebenfalls'],['ihnen','auch']], hint:'Danke, Ihnen auch!'}
+    ]},
+  {id:'im-restaurant', level:'A2', icon:'🍽️', title:'Im Restaurant', desc:'Order a meal at a restaurant',
+    turns:[
+      {bot:'Guten Abend! Haben Sie einen Tisch reserviert?', botEn:'Good evening! Do you have a table reserved?',
+        accept:[['ja'],['nein'],['reserviert'],['reservierung']], hint:'Nein, wir sind zu zweit.'},
+      {bot:'Kein Problem, folgen Sie mir bitte. Hier ist die Speisekarte.', botEn:"No problem, please follow me. Here's the menu.",
+        accept:[['danke']], hint:'Danke schön.'},
+      {bot:'Was darf ich Ihnen bringen?', botEn:'What can I get you?',
+        accept:[['ich','möchte'],['ich','hätte','gern'],['schnitzel'],['suppe'],['salat'],['pizza'],['pasta']], hint:'Ich hätte gern das Schnitzel mit Salat.'},
+      {bot:'Sehr gerne. Und was möchten Sie trinken?', botEn:'Certainly. And what would you like to drink?',
+        accept:[['wasser'],['wein'],['bier'],['cola'],['saft'],['ich','möchte'],['ich','hätte','gern']], hint:'Ein Wasser, bitte.'},
+      {bot:'Kommt gleich. Guten Appetit!', botEn:'Coming right up. Enjoy your meal!',
+        accept:[['danke']], hint:'Danke, ebenfalls!'}
+    ]},
+  {id:'beim-einkaufen', level:'A2', icon:'🛍️', title:'Beim Einkaufen', desc:'Buy clothes at a shop',
+    turns:[
+      {bot:'Guten Tag! Kann ich Ihnen helfen?', botEn:'Hello! Can I help you?',
+        accept:[['ich','suche'],['haben','sie'],['ja']], hint:'Ja, ich suche eine Jacke.'},
+      {bot:'Welche Größe brauchen Sie?', botEn:'What size do you need?', free:true},
+      {bot:'Die Umkleidekabine ist dort hinten.', botEn:'The fitting room is back there.',
+        accept:[['danke']], hint:'Danke schön.'},
+      {bot:'Und, wie hat es Ihnen gepasst?', botEn:'So, how did it fit?',
+        accept:[['gut'],['passt'],['nicht'],['zu','groß'],['zu','klein']], hint:'Es passt gut, danke.'},
+      {bot:'Möchten Sie es kaufen?', botEn:'Would you like to buy it?',
+        accept:[['ja'],['nein']], hint:'Ja, ich nehme es.'}
+    ]},
+  {id:'wochenende', level:'B1', icon:'📅', title:'Über das Wochenende', desc:'Chat about your weekend plans',
+    turns:[
+      {bot:'Na, was hast du am Wochenende gemacht?', botEn:'So, what did you do on the weekend?', free:true},
+      {bot:'Klingt schön! Warst du auch draußen, bei dem Wetter?', botEn:'Sounds nice! Were you outside too, with that weather?',
+        accept:[['ja'],['nein'],['war','ich']], hint:'Ja, ich war im Park spazieren.'},
+      {bot:'Und was hast du sonst noch gemacht?', botEn:'And what else did you do?', free:true},
+      {bot:'Und was sind deine Pläne für nächstes Wochenende?', botEn:'And what are your plans for next weekend?', free:true},
+      {bot:'Klingt nach einem guten Plan! Viel Spaß dabei!', botEn:'Sounds like a good plan! Have fun!',
+        accept:[['danke']], hint:'Danke dir!'}
+    ]}
+];
+const TALK_TINTS=['q','s','m','p','b'];
+let talkScenario=null, talkIdx=0, talkMsgs=[], talkAwaitingUser=false, talkListening=false, talkShowEn=false, talkHandsFree=true, talkAttempts=0;
+
+function speechPlugin(){
+  return (window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform()
+    && Capacitor.Plugins && Capacitor.Plugins.SpeechRecognition) || null;
+}
+function normalizeDE(s){
+  return (s||'').toLowerCase()
+    .replace(/ß/g,'ss').replace(/[äÄ]/g,'a').replace(/[öÖ]/g,'o').replace(/[üÜ]/g,'u')
+    .replace(/[^a-z0-9\s]/g,' ').replace(/\s+/g,' ').trim();
+}
+function matchesTurn(turn, said){
+  if(turn.free) return true;
+  const norm=normalizeDE(said);
+  return (turn.accept||[]).some(set=>set.every(kw=>norm.includes(normalizeDE(kw))));
+}
+
+function renderTalk(){
+  const el=document.getElementById('screen-talk');
+  const groups=['A1','A2','B1','B2','C1'].map(L=>({L,items:SCENARIOS.filter(sc=>sc.level===L)})).filter(g=>g.items.length);
+  const html=groups.map(g=>`
+    <div class="set-label">${g.L}</div>
+    ${g.items.map(sc=>{
+      const tint=TALK_TINTS[SCENARIOS.indexOf(sc)%TALK_TINTS.length];
+      return `<div class="game-tile" onclick="openTalk('${sc.id}')"><div class="gi ${tint}">${sc.icon}</div><div><div class="gt">${sc.title}</div><div class="gd">${sc.desc}</div></div></div>`;
+    }).join('')}
+  `).join('');
+  el.innerHTML=`
+    <div class="section-head"><div><h1 class="title">🎙️ Sprechen</h1><div class="sub">Hands-free speaking practice</div></div></div>
+    <div class="banner acc">🎙️ Pick a scenario — I'll speak German out loud, then it's your turn to reply out loud. TTS works fully offline; voice recognition uses your phone's built-in speech engine (needs an internet connection on most devices).</div>
+    ${html}
+    <div style="height:20px"></div>`;
+}
+
+function openTalk(id){
+  talkScenario=SCENARIOS.find(x=>x.id===id);
+  if(!talkScenario) return;
+  talkIdx=0; talkMsgs=[]; talkShowEn=false; talkAwaitingUser=false; talkListening=false; talkAttempts=0;
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('screen-talk').classList.add('active');
+  document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('active', b.dataset.s==='talk'));
+  renderTalkPlayer();
+  document.getElementById('app').scrollTop=0;
+  setTimeout(botSpeak,300);
+}
+
+function renderTalkPlayer(){
+  const el=document.getElementById('screen-talk');
+  const sc=talkScenario; if(!sc) return;
+  const msgsHtml=talkMsgs.map(m=>`<div class="talk-msg ${m.who}${m.ok===false?' wrong':''}${talkShowEn?' show-en':''}" ${m.who==='bot'?'onclick="talkReplayLast()"':''}>${m.text}${m.en?`<div class="ten">${m.en}</div>`:''}</div>`).join('');
+  const done=talkIdx>=sc.turns.length;
+  el.innerHTML=`
+    <button class="game-back" onclick="closeTalk()">‹ All scenarios</button>
+    <div class="section-head"><div><h1 class="title">${sc.icon} ${sc.title}</h1><div class="sub">${sc.desc}</div></div></div>
+    <div class="hf-row"><span>🙌 Hands-free (auto-listen after I speak)</span><div class="hf-switch ${talkHandsFree?'on':''}" onclick="toggleHandsFree()"><div class="kn"></div></div></div>
+    <div id="talkMsgs">${msgsHtml}</div>
+    ${done?`
+      <div class="study-done" style="margin-top:10px">
+        <div class="big">🎉</div>
+        <h2 class="serif" style="font-size:22px;margin:8px 0 4px">Conversation complete!</h2>
+        <div class="sub" style="margin-bottom:16px">${sc.turns.length} exchange${sc.turns.length!==1?'s':''} practiced</div>
+        <button class="btn full" onclick="openTalk('${sc.id}')">🔁 Practice again</button>
+        <div style="height:10px"></div>
+        <button class="btn ghost full" onclick="closeTalk()">Back to scenarios</button>
+      </div>`:`
+      <div class="talk-status" id="talkStatus">${talkAwaitingUser?'Your turn — tap the mic and speak':'Listen…'}</div>
+      <button class="talk-mic${talkListening?' listening':''}" id="talkMicBtn" onclick="talkMicTap()" aria-label="Speak">${talkListening?'⏹':'🎤'}</button>
+      <div class="talk-toolbar">
+        <button class="btn ghost sm" onclick="toggleTalkEn()">${talkShowEn?'Hide':'Show'} English</button>
+        <button class="btn ghost sm" onclick="talkReplayLast()">🔁 Repeat</button>
+        <button class="btn ghost sm" onclick="talkHint()">💡 Hint</button>
+      </div>`}
+    <div style="height:20px"></div>`;
+  const box=document.getElementById('talkMsgs'); if(box) box.scrollTop=box.scrollHeight;
+}
+
+function botSpeak(){
+  const sc=talkScenario; if(!sc) return;
+  if(talkIdx>=sc.turns.length){ renderTalkPlayer(); return; }
+  const turn=sc.turns[talkIdx];
+  talkAwaitingUser=false; talkAttempts=0;
+  talkMsgs.push({who:'bot', text:turn.bot, en:turn.botEn});
+  renderTalkPlayer();
+  const finish=()=>{
+    if(!talkScenario) return;
+    talkAwaitingUser=true;
+    renderTalkPlayer();
+    if(talkHandsFree) talkStartListening();
+  };
+  const tts=nativeTTS();
+  if(tts){
+    tts.speak({text:turn.bot, lang:'de-DE', rate:.85, pitch:1.0, volume:1.0, category:'ambient'}).catch(()=>{}).finally(finish);
+  } else if(window.speechSynthesis){
+    const u=new SpeechSynthesisUtterance(turn.bot); u.lang='de-DE'; u.rate=.85; if(deVoice) u.voice=deVoice;
+    u.onend=finish; u.onerror=finish;
+    try{ speechSynthesis.speak(u); }catch(e){ finish(); }
+  } else { finish(); }
+}
+
+function talkReplayLast(){
+  const sc=talkScenario; if(!sc || talkIdx>=sc.turns.length) return;
+  const turn=sc.turns[talkIdx];
+  const tts=nativeTTS();
+  if(tts){ tts.speak({text:turn.bot, lang:'de-DE', rate:.85, pitch:1.0, volume:1.0, category:'ambient'}).catch(()=>{}); return; }
+  if(!window.speechSynthesis) return;
+  const u=new SpeechSynthesisUtterance(turn.bot); u.lang='de-DE'; u.rate=.85; if(deVoice) u.voice=deVoice;
+  try{ speechSynthesis.speak(u); }catch(e){}
+}
+
+function talkHint(){
+  const sc=talkScenario; if(!sc || talkIdx>=sc.turns.length) return;
+  const turn=sc.turns[talkIdx];
+  if(turn.free){ toast('💬 Any honest answer works here — just speak!'); return; }
+  if(turn.hint) toast('💡 z.B.: "'+turn.hint+'"');
+}
+
+function toggleTalkEn(){ talkShowEn=!talkShowEn; renderTalkPlayer(); }
+
+function toggleHandsFree(){
+  talkHandsFree=!talkHandsFree;
+  renderTalkPlayer();
+  if(talkHandsFree && talkAwaitingUser && !talkListening) talkStartListening();
+}
+
+function talkMicTap(){
+  if(talkListening){ talkStopListening(); return; }
+  if(!talkAwaitingUser) return;
+  talkStartListening();
+}
+
+async function talkStartListening(){
+  if(talkListening || !talkScenario) return;
+  const sr=speechPlugin();
+  if(!sr){ toast('🎤 Voice input needs the installed app'); return; }
+  try{
+    const avail=await sr.available();
+    if(!avail.available){ toast('🎤 Speech recognition not available on this device'); return; }
+    let perm=await sr.checkPermissions();
+    if(perm.speechRecognition!=='granted'){
+      perm=await sr.requestPermissions();
+      if(perm.speechRecognition!=='granted'){ toast('🎤 Microphone permission is needed to talk with me'); return; }
+    }
+  }catch(e){ toast('🎤 Could not access the microphone'); return; }
+  if(!talkScenario) return;
+  talkListening=true;
+  const micBtn=document.getElementById('talkMicBtn'); if(micBtn){ micBtn.classList.add('listening'); micBtn.textContent='⏹'; }
+  const statusEl=document.getElementById('talkStatus'); if(statusEl) statusEl.textContent='Listening… speak now';
+  try{
+    const res=await sr.start({language:'de-DE', maxResults:1, prompt:'Sprich auf Deutsch…', popup:false, partialResults:false});
+    talkListening=false;
+    if(!talkScenario) return;
+    const said=(res && res.matches && res.matches[0]) || '';
+    talkProcessUserSpeech(said);
+  }catch(e){
+    talkListening=false;
+    if(!talkScenario) return;
+    talkProcessUserSpeech('');
+  }
+}
+
+async function talkStopListening(){
+  const sr=speechPlugin();
+  talkListening=false;
+  const micBtn=document.getElementById('talkMicBtn'); if(micBtn){ micBtn.classList.remove('listening'); micBtn.textContent='🎤'; }
+  if(sr){ try{ await sr.stop(); }catch(e){} }
+}
+
+function talkProcessUserSpeech(said){
+  const sc=talkScenario; if(!sc) return;
+  const turn=sc.turns[talkIdx]; if(!turn) return;
+  const text=(said||'').trim();
+  if(!text){
+    talkAttempts++;
+    renderTalkPlayer();
+    const statusEl=document.getElementById('talkStatus'); if(statusEl) statusEl.textContent="Didn't catch that — try again";
+    if(talkAttempts>=2) talkHint();
+    if(talkHandsFree) setTimeout(()=>{ if(talkScenario) talkStartListening(); }, 900);
+    return;
+  }
+  const ok=matchesTurn(turn, text);
+  talkMsgs.push({who:'user', text, ok});
+  renderTalkPlayer();
+  if(ok){
+    toast(turn.free?'👍 Danke!':'✅ Sehr gut!');
+    talkIdx++;
+    setTimeout(()=>{ if(talkScenario) botSpeak(); }, 700);
+  } else {
+    talkAttempts++;
+    toast('🤔 Versuch\'s nochmal');
+    if(talkAttempts>=2) talkHint();
+    if(talkHandsFree) setTimeout(()=>{ if(talkScenario) talkStartListening(); }, 900);
+  }
+}
+
+function stopTalk(){
+  talkListening=false;
+  const sr=speechPlugin(); if(sr){ try{ sr.stop(); }catch(e){} }
+  const tts=nativeTTS(); if(tts){ try{ tts.stop(); }catch(e){} }
+  if(window.speechSynthesis){ try{ speechSynthesis.cancel(); }catch(e){} }
+  talkScenario=null;
+}
+
+function closeTalk(){
+  stopTalk();
+  renderTalk();
 }
 
 </script>
