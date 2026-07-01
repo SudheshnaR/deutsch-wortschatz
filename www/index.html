@@ -5238,15 +5238,25 @@ function pullNewBatch(n){
 function shuffle(a){ a=[...a]; for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
 function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),1900); }
 
-/* ===== AUDIO — German text-to-speech (offline, built-in) ===== */
+/* ===== AUDIO — German text-to-speech (native TTS on device, Web Speech API in browser) ===== */
 let deVoice=null;
 function pickVoice(){
   const vs=window.speechSynthesis ? speechSynthesis.getVoices() : [];
   deVoice = vs.find(v=>/de[-_]/i.test(v.lang)) || vs.find(v=>/^de/i.test(v.lang)) || null;
 }
 if(window.speechSynthesis){ pickVoice(); speechSynthesis.onvoiceschanged=pickVoice; }
+function nativeTTS(){
+  return (window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform()
+    && Capacitor.Plugins && Capacitor.Plugins.TextToSpeech) || null;
+}
 function speak(text,ev){
   if(ev){ ev.stopPropagation(); }
+  const tts=nativeTTS();
+  if(tts){
+    tts.speak({text, lang:'de-DE', rate:.85, pitch:1.0, volume:1.0, category:'ambient'})
+      .catch(()=>toast('🔇 Audio unavailable'));
+    return;
+  }
   if(!window.speechSynthesis){ toast('🔇 Audio not supported here'); return; }
   try{
     speechSynthesis.cancel();
@@ -6675,6 +6685,15 @@ function highlightSent(i){
 function playSentence(i,ev){
   if(ev) ev.stopPropagation();
   stopStoryAudio();
+  const tts=nativeTTS();
+  if(tts){
+    highlightSent(i);
+    storyPlaying=true;
+    tts.speak({text:curStory.sentences[i].de, lang:'de-DE', rate:.85, pitch:1.0, volume:1.0, category:'ambient'})
+      .catch(()=>toast('🔇 Audio unavailable'))
+      .finally(()=>{ storyPlaying=false; highlightSent(-1); });
+    return;
+  }
   if(!window.speechSynthesis){ toast('🔇 Audio not supported here'); return; }
   highlightSent(i);
   const u=new SpeechSynthesisUtterance(curStory.sentences[i].de);
@@ -6683,10 +6702,22 @@ function playSentence(i,ev){
   try{ speechSynthesis.speak(u); }catch(e){ toast('🔇 Audio unavailable'); }
 }
 function playWholeStory(){
-  if(!window.speechSynthesis){ toast('🔇 Audio not supported here'); return; }
   stopStoryAudio();
   storyPlaying=true;
   let i=0;
+  const tts=nativeTTS();
+  if(tts){
+    const playNextNative=()=>{
+      if(!storyPlaying || i>=curStory.sentences.length){ storyPlaying=false; highlightSent(-1); return; }
+      highlightSent(i);
+      tts.speak({text:curStory.sentences[i].de, lang:'de-DE', rate:.85, pitch:1.0, volume:1.0, category:'ambient'})
+        .then(()=>{ if(!storyPlaying) return; i++; playNextNative(); })
+        .catch(()=>{ storyPlaying=false; toast('🔇 Audio unavailable'); });
+    };
+    playNextNative();
+    return;
+  }
+  if(!window.speechSynthesis){ toast('🔇 Audio not supported here'); return; }
   const playNext=()=>{
     if(!storyPlaying || i>=curStory.sentences.length){ storyPlaying=false; highlightSent(-1); return; }
     highlightSent(i);
@@ -6699,6 +6730,8 @@ function playWholeStory(){
 }
 function stopStoryAudio(){
   storyPlaying=false;
+  const tts=nativeTTS();
+  if(tts){ try{ tts.stop(); }catch(e){} }
   if(window.speechSynthesis){ try{ speechSynthesis.cancel(); }catch(e){} }
   highlightSent(-1);
 }
