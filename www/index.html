@@ -263,6 +263,15 @@ nav button.active{color:var(--accent)}
 .hf-switch .kn{position:absolute;top:2px;left:2px;width:20px;height:20px;background:#fff;border-radius:50%;transition:.2s}
 .hf-switch.on .kn{transform:translateX(20px)}
 
+/* MONOLOGUE / PROCON — exam-style B1/B2 speaking topics */
+.mono-prompt{font-family:'Fraunces',serif;font-size:19px;line-height:1.4;font-weight:600}
+.mono-prompt-en{font-size:13px;color:var(--dim);margin-top:6px}
+.mono-timer{font-family:'Fraunces',serif;font-size:64px;font-weight:700;text-align:center;color:var(--accent);margin:14px 0}
+.procon-h{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin:16px 0 8px}
+.procon-h.pro{color:var(--noun)}
+.procon-h.con{color:var(--other)}
+.procon-item{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:13.5px;line-height:1.4;margin-bottom:8px}
+
 /* Themes phrasebook */
 .theme-grid{display:flex;flex-direction:column;gap:10px;margin-top:8px}
 .theme-card{display:flex;align-items:center;gap:14px;background:var(--card,#1a1d27);border:1px solid rgba(255,255,255,.07);border-radius:16px;padding:14px 16px;cursor:pointer;transition:.15s}
@@ -7945,10 +7954,947 @@ const SCENARIOS=[
       {bot:'Und was sind deine Pläne für nächstes Wochenende?', botEn:'And what are your plans for next weekend?', free:true},
       {bot:'Klingt nach einem guten Plan! Viel Spaß dabei!', botEn:'Sounds like a good plan! Have fun!',
         accept:[['danke']], hint:'Danke dir!'}
+    ]},
+  {id:'mein-arbeitstag', level:'A2', icon:'💼', title:'Mein Arbeitstag', desc:'Describe a typical workday',
+    turns:[
+      {bot:'Wie sieht ein typischer Arbeitstag bei dir aus? Wann stehst du auf?', botEn:'What does a typical workday look like for you? When do you get up?', free:true},
+      {bot:'Und wie kommst du zur Arbeit — mit dem Auto, dem Zug, oder zu Fuß?', botEn:'And how do you get to work — by car, by train, or on foot?', free:true},
+      {bot:'Was machst du normalerweise in der Mittagspause?', botEn:'What do you usually do during your lunch break?', free:true},
+      {bot:'Und wann bist du meistens mit der Arbeit fertig?', botEn:'And when do you usually finish work?', free:true},
+      {bot:'Das klingt nach einem geregelten Tag! Gefällt dir dein Arbeitstag?', botEn:'Sounds like a well-structured day! Do you like your workday?',
+        accept:[['ja'],['nein'],['gefällt','mir'],['es','geht']], hint:'Ja, mein Arbeitstag gefällt mir sehr gut.'}
+    ]},
+  {id:'urlaubsplanung', level:'A2', icon:'🧳', title:'Urlaub vorbereiten', desc:'Talk about preparing for a vacation',
+    turns:[
+      {bot:'Machst du bald Urlaub? Wohin geht die Reise?', botEn:'Are you going on vacation soon? Where are you traveling to?', free:true},
+      {bot:'Wie bereitest du dich normalerweise auf eine Reise vor?', botEn:'How do you usually prepare for a trip?', free:true},
+      {bot:'Packst du früh oder erst kurz vor der Abreise?', botEn:'Do you pack early or just before departure?',
+        accept:[['früh'],['spät'],['kurz','vor'],['am','letzten','tag']], hint:'Ich packe meistens erst einen Tag vorher.'},
+      {bot:'Was darf bei dir im Koffer niemals fehlen?', botEn:'What can never be missing from your suitcase?', free:true},
+      {bot:'Klingt nach einer schönen Reise! Gute Erholung!', botEn:'Sounds like a lovely trip! Enjoy the rest!',
+        accept:[['danke']], hint:'Danke schön!'}
+    ]},
+  {id:'meine-stadt', level:'A2', icon:'🏘️', title:'Wo ich wohne', desc:'What you like and dislike about where you live',
+    turns:[
+      {bot:'In welcher Stadt oder Gemeinde wohnst du?', botEn:'What city or town do you live in?', free:true},
+      {bot:'Was gefällt dir an diesem Ort am besten?', botEn:'What do you like best about this place?', free:true},
+      {bot:'Gibt es auch etwas, das dir dort nicht so gut gefällt?', botEn:"Is there also something you don't like so much there?", free:true},
+      {bot:'Und was magst du an der Schweiz allgemein?', botEn:'And what do you like about Switzerland in general?', free:true},
+      {bot:'Vielen Dank fürs Erzählen — das war sehr interessant!', botEn:'Thanks for sharing — that was very interesting!',
+        accept:[['gern','geschehen'],['bitte'],['kein','problem'],['gerne']], hint:'Gerne, kein Problem!'}
     ]}
+];
+const B1_PROCON_TOPICS=[
+{
+    id: 'wohngemeinschaft',
+    title: 'Wohngemeinschaft',
+    titleEn: 'Shared flat / house-sharing',
+    level: 'B1', icon: '🏠', mode: 'procon', prep: 30,
+    desc: 'Vorteile & Nachteile',
+    prompt: 'Wohngemeinschaft: Vorteile und Nachteile', promptEn: 'Shared flat / house-sharing — pros and cons',
+    vorteile: [
+      'Die Beziehung und Freundschaft stärken',
+      'Wenn wir ein Problem haben, können wir miteinander diskutieren und einfach eine Lösung finden',
+      'Man kann die Miete teilen und damit Geld sparen',
+      'Es fördert eine hilfreiche Mentalität',
+      'Einheit und Zusammenarbeit',
+      'Wir lernen, wie man das Leben allein organisieren kann',
+    ],
+    nachteile: [
+      'Keine Privatsphäre',
+      'Man streitet sich öfter',
+      'Man ist von anderen abhängig',
+      'Verbreitung von Krankheiten',
+    ],
+  },
+{
+    id: 'verkaufen-im-internet',
+    title: 'Verkaufen im Internet',
+    titleEn: 'Selling things online',
+    level: 'B1', icon: '🛒', mode: 'procon', prep: 30,
+    desc: 'Vorteile & Nachteile',
+    prompt: 'Verkaufen im Internet: Vorteile und Nachteile', promptEn: 'Selling things online — pros and cons',
+    vorteile: [
+      'Es gibt zahlreiche Möglichkeiten, etwas im Internet zu verkaufen, z.B. auf Olx usw.',
+      'Verkaufen im Internet ist nicht nur praktisch, sondern auch sehr einfach',
+      'Man kann sowohl Geld als auch Zeit sparen',
+      'Man kann jederzeit etwas verkaufen und dabei zu Hause sitzen bleiben',
+    ],
+    nachteile: [
+      'Man bekommt nicht immer die erwarteten Preise',
+      'Es gibt für manche Produkte nur sehr wenige Käufer',
+      'Man sollte geduldig sein, um etwas zu verkaufen, denn es braucht viel Zeit',
+    ],
+    opinion: 'Früher war das nicht üblich, aber heutzutage ist es sehr verbreitet geworden.',
+  },
+{
+    id: 'sport-treiben',
+    title: 'Sport treiben',
+    titleEn: 'Doing sports',
+    level: 'B1', icon: '🏃', mode: 'procon', prep: 30,
+    desc: 'Vorteile & Nachteile',
+    prompt: 'Sport treiben: Vorteile und Nachteile', promptEn: 'Doing sports — pros and cons',
+    vorteile: [
+      'Sport hilft der körperlichen und geistigen Entwicklung',
+      'Er stärkt unsere Knochen, Gelenke und Muskeln',
+      'Er vertreibt Einsamkeit und Langeweile',
+      'Es ist eine gute Freizeitaktivität',
+      'Er baut Stress ab und hilft, Übergewicht zu reduzieren und abzunehmen',
+      'Dadurch kann man verschiedene Krankheiten vermeiden',
+    ],
+    nachteile: [
+      'Es ist schwer, Zeit dafür zu finden',
+      'Sport ist manchmal gefährlich, und es besteht die Gefahr einer Verletzung',
+      'Manche Sportarten sind sehr teuer, und nicht alle können sich das leisten, besonders arme Leute',
+      'Übermäßiger Sport macht manche Menschen faul und krank',
+      'Wenn wir mehr Zeit mit Sport verbringen, haben wir weniger Zeit für wichtige Tätigkeiten',
+    ],
+    opinion: 'Die meisten Menschen sind sich über ihre eigene Gesundheit nicht bewusst.',
+  },
+{
+    id: 'soziale-netzwerke',
+    title: 'Soziale Netzwerke',
+    titleEn: 'Social networks',
+    level: 'B1', icon: '📱', mode: 'procon', prep: 30,
+    desc: 'Vorteile & Nachteile',
+    prompt: 'Soziale Netzwerke: Vorteile und Nachteile', promptEn: 'Social networks — pros and cons',
+    vorteile: [
+      'Sie bieten verschiedene Möglichkeiten zu kommunizieren',
+      'Sie helfen, Langeweile und Stress abzubauen',
+      'Man bekommt viele Informationen über verschiedene Fächer ohne Grenzen, und das kostenlos',
+      'Sie verbessern die Kommunikationsfähigkeit',
+      'Man kann neue Sprachen, Kulturen und Freunde kennenlernen',
+    ],
+    nachteile: [
+      'Man wird süchtig nach sozialen Netzwerken',
+      'Übermäßige Nutzung der sozialen Netzwerke schadet',
+      'Es betrifft die Augen und das Gehirn',
+      'Man verliert eigene Fähigkeiten',
+      'Es besteht die Gefahr, betrogen zu werden',
+    ],
+    opinion: 'Man sollte vorsichtig sein.',
+  },
+{
+    id: 'sprachlernen-mit-dem-pc',
+    title: 'Sprachlernen mit dem PC',
+    titleEn: 'Learning a language with the computer',
+    level: 'B1', icon: '💻', mode: 'procon', prep: 30,
+    desc: 'Vorteile & Nachteile',
+    prompt: 'Sprachlernen mit dem PC: Vorteile und Nachteile', promptEn: 'Learning a language with the computer — pros and cons',
+    vorteile: [
+      'Man spart Geld und Zeit',
+      'Man kann in jeder Situation und zu jeder Zeit lernen',
+      'Es ist eine angenehme Situation, weil man zu Hause lernen kann',
+      'Es ist eine große Hilfe für berufstätige Leute',
+      'Es ist sehr praktisch für Studenten mit Beeinträchtigungen und für behinderte Menschen',
+    ],
+    nachteile: [
+      'Schüler haben keine körperliche Interaktion mit dem Lehrer oder mit anderen Studenten',
+      'Es ist schwierig, Zweifel zu klären',
+      'Es kann Verbindungsprobleme geben',
+      'Es ist teuer, sodass nicht alle es sich leisten können',
+    ],
+  },
+{
+    id: 'reisen',
+    title: 'Reisen',
+    titleEn: 'Traveling',
+    level: 'B1', icon: '✈️', mode: 'procon', prep: 30,
+    desc: 'Vorteile & Nachteile',
+    prompt: 'Reisen: Vorteile und Nachteile', promptEn: 'Traveling — pros and cons',
+    vorteile: [
+      'Es baut Stress, Langeweile und Einsamkeit ab',
+      'Reisen macht unser Leben sehr frisch',
+      'Es verbessert das Allgemeinwissen, und man kann neue Sprachen, Kulturen und Freunde kennenlernen',
+      'Es verbessert das Selbstbewusstsein',
+      'Man kann verschiedene Gerichte ausprobieren',
+      'Es stärkt die Beziehung zwischen Familienangehörigen',
+      'Man kann neue Erfahrungen sammeln und unvergessliche Erlebnisse haben',
+    ],
+    nachteile: [
+      'Es ist teuer, sodass nicht alle es sich leisten können',
+      'Es ist gefährlich, weil ein Unfall passieren kann',
+    ],
+  },
+{
+    id: 'rauchverbot-im-restaurant',
+    title: 'Rauchverbot im Restaurant',
+    titleEn: 'Smoking ban in restaurants',
+    level: 'B1', icon: '🚭', mode: 'procon', prep: 30,
+    desc: 'Vorteile & Nachteile',
+    prompt: 'Rauchverbot im Restaurant: Vorteile und Nachteile', promptEn: 'Smoking ban in restaurants — pros and cons',
+    vorteile: [
+      'Es gibt frische Luft',
+      'Man kann Krankheiten vermeiden, was besonders Asthma-Patienten hilft',
+      'Es reduziert Risiken',
+      'Man kann das Essen besser genießen',
+      'Es ist ein gutes Vorbild für die zukünftigen Generationen',
+      'Es reduziert die Verschmutzung',
+      'Es hilft kranken Menschen, z.B. Allergikern, Kindern, älteren Leuten und schwangeren Frauen',
+    ],
+    nachteile: [
+      'Rauchende Leute möchten dann nicht mehr kommen',
+      'Es stört die Freiheit der Leute',
+    ],
+    opinion: 'Auf jeden Fall kann man das Rauchen nicht rechtfertigen, denn es kann tödlich sein.',
+  },
+{
+    id: 'oeffentliche-verkehrsmittel',
+    title: 'Öffentliche Verkehrsmittel',
+    titleEn: 'Public transport',
+    level: 'B1', icon: '🚌', mode: 'procon', prep: 30,
+    desc: 'Vorteile & Nachteile',
+    prompt: 'Öffentliche Verkehrsmittel: Vorteile und Nachteile', promptEn: 'Public transport — pros and cons',
+    vorteile: [
+      'Es ist billiger, günstiger und stressfrei, und man kann Geld sparen',
+      'Es reduziert die Luftverschmutzung und den Verkehrsstau',
+      'Es ist angenehm, weil wir während der Fahrt Bücher lesen oder Musik hören können',
+      'Es gibt einen Zeitplan, und man kann die lange Fahrt genießen',
+      'Man spart sich einen Parkplatz und kann Leute kennenlernen',
+    ],
+    nachteile: [
+      'Man hat keine Privatsphäre und muss oft lange warten',
+      'Es ist schwierig, wenn es schlechtes Wetter gibt',
+      'Es ist schwierig für behinderte Menschen zu fahren',
+      'Es ist manchmal schmutzig, verursacht Krankheiten, und ist manchmal überfüllt',
+      'Es besteht die Gefahr von Diebstahl',
+      'Wenn wir viele Sachen gekauft haben, ist es nicht einfach, sie zu tragen',
+    ],
+  },
+{
+    id: 'neue-oder-gebrauchte-sachen',
+    title: 'Neue oder gebrauchte Sachen',
+    titleEn: 'New or used things',
+    level: 'B1', icon: '🛍️', mode: 'procon', prep: 30,
+    desc: 'Vorteile & Nachteile',
+    prompt: 'Neue oder gebrauchte Sachen: Vorteile und Nachteile', promptEn: 'New or used things — pros and cons',
+    vorteile: [
+      'Neue Sachen: Es gibt Angebote für neue Sachen',
+      'Neue Sachen: Es gibt Garantie, gute Qualität und eine Umtauschmöglichkeit',
+      'Neue Sachen: Sie halten lange, sind frisch und sicher, sodass man gesundheitliche Probleme vermeiden kann',
+      'Gebrauchte Sachen: Sie sind billig, und man kann Geld sparen',
+      'Gebrauchte Sachen: Man bekommt wertvollere Sachen für weniger Geld',
+    ],
+    nachteile: [
+      'Neue Sachen: Sie sind teuer, und arme Leute können sich das nicht leisten',
+      'Neue Sachen: Manchmal bekommt man neue Sachen von nicht guter Qualität',
+      'Neue Sachen: Es gibt einen Unterschied zwischen unseren Erwartungen und der Realität',
+      'Neue Sachen: Man muss Steuern für die neuen Sachen bezahlen',
+      'Gebrauchte Sachen: Es gibt keine Garantie, oft keine gute Qualität und keine Umtauschmöglichkeit',
+      'Gebrauchte Sachen: Es gibt Risiken einer Infektion (Ansteckung)',
+      'Gebrauchte Sachen: Sie gehen schnell kaputt, da sie beschädigte Sachen sein können',
+    ],
+  },
+{
+    id: 'mittagsschlaf',
+    title: 'Mittagsschlaf',
+    titleEn: 'Afternoon nap',
+    level: 'B1', icon: '😴', mode: 'procon', prep: 30,
+    desc: 'Vorteile & Nachteile',
+    prompt: 'Mittagsschlaf: Vorteile und Nachteile', promptEn: 'Afternoon nap — pros and cons',
+    vorteile: [
+      'Er baut Stress ab, man kann sich erholen und damit Krankheiten vermeiden',
+      'Der Mittagsschlaf macht einen frisch, und man kann danach lange Zeit arbeiten',
+      'Er hilft, das Gehirn und die Mentalität zu verbessern',
+      'Man kann effektiver arbeiten',
+      'Er macht die Arbeit sehr leicht',
+    ],
+    nachteile: [
+      'Manchmal macht er einen müde und faul',
+      'Man kann nicht alle Aufgaben rechtzeitig erledigen',
+      'Der Mittagsschlaf stört den Nachtschlaf',
+    ],
+  },
+{
+    id: 'luftverschmutzung',
+    title: 'Luftverschmutzung',
+    titleEn: 'Air pollution',
+    level: 'B1', icon: '🌫️', mode: 'procon', prep: 30,
+    desc: 'Vorteile & Nachteile',
+    prompt: 'Luftverschmutzung: Vorteile und Nachteile', promptEn: 'Air pollution — pros and cons',
+    vorteile: [],
+    nachteile: [
+      'Sie verursacht verschiedene Krankheiten, z.B. Lungenkrankheiten, Krebs, Allergien und Atemprobleme',
+      'Es macht unser Leben sehr schwierig, weil wir uns nicht frei bewegen können',
+      'Luftverschmutzung schadet der Ozonschicht',
+      'Sie vergrößert die Erderwärmung',
+      'Sie betrifft die Pflanzen und Tiere',
+      'Sie verbreitet Krankheiten',
+    ],
+    opinion: 'Der Grund für die Luftverschmutzung sind Firmen, Industrie, Verkehrsmittel und Abholzung usw. Jeder muss etwas gegen die Luftverschmutzung tun, damit wir unsere Zukunft sichern können. Es ist unsere Pflicht und Verantwortung, dass wir etwas dagegen tun. Wir müssen für die zukünftigen Generationen die frische Luft und das frische Wasser garantieren.',
+  },
+{
+    id: 'kinder-und-handy',
+    title: 'Kinder und Handy',
+    titleEn: 'Children and mobile phones',
+    level: 'B1', icon: '📱', mode: 'procon', prep: 30,
+    desc: 'Vorteile & Nachteile',
+    prompt: 'Kinder und Handy: Vorteile und Nachteile', promptEn: 'Children and mobile phones — pros and cons',
+    vorteile: [
+      'Das Handy bietet verschiedene Möglichkeiten zu kommunizieren',
+      'Es ist eine gute Freizeitaktivität',
+      'Es hilft, Langeweile, Einsamkeit und Stress abzubauen',
+      'Das Handy unterstützt die Bildung',
+      'Es verbessert das Allgemeinwissen',
+      'Kinder bekommen viele Informationen über verschiedene Fächer ohne Grenzen, und das kostenlos',
+      'Es verbessert die Kommunikationsfähigkeit',
+      'Man kann neue Sprachen, Kulturen und Freunde kennenlernen',
+      'Kinder werden immer erreichbar und können in Notfallsituationen ihre Eltern anrufen',
+    ],
+    nachteile: [
+      'Kinder werden süchtig nach dem Handy und missbrauchen es',
+      'Übermäßige Nutzung des Handys verursacht verschiedene Krankheiten, macht faul und führt zu Übergewicht',
+      'Es betrifft die Augen und das Gehirn',
+      'Kinder verlieren eigene Fähigkeiten, und das Handy zerstört ihre Zukunft, ihren Schlaf und ihr Studium',
+      'Wenn Kinder mehr Zeit mit dem Handy verbringen, haben sie weniger Zeit für andere Aktivitäten',
+      'Die Nutzung des Handys muss kontrolliert werden',
+    ],
+  },
+{
+    id: 'kinder-und-fernsehen',
+    title: 'Kinder und Fernsehen',
+    titleEn: 'Children and television',
+    level: 'B1', icon: '📺', mode: 'procon', prep: 30,
+    desc: 'Vorteile & Nachteile',
+    prompt: 'Kinder und Fernsehen: Vorteile und Nachteile', promptEn: 'Children and television — pros and cons',
+    vorteile: [
+      'Es ist eine gute Freizeitaktivität',
+      'Es hilft, Langeweile, Einsamkeit und Stress abzubauen',
+      'Das Fernsehen unterstützt die Bildung',
+      'Es verbessert das Allgemeinwissen',
+      'Kinder bekommen viele Informationen über verschiedene Fächer ohne Grenzen, und das kostenlos',
+      'Es verbessert die Kommunikationsfähigkeit',
+      'Man kann neue Sprachen und Kulturen kennenlernen (ganz anders oder ähnlich wie in unserem Heimatland)',
+    ],
+    nachteile: [
+      'Kinder werden süchtig nach dem Fernsehen',
+      'Übermäßige Nutzung des Fernsehens verursacht verschiedene Krankheiten, macht faul und führt zu Übergewicht',
+      'Es betrifft die Augen und das Gehirn',
+      'Kinder verlieren eigene Fähigkeiten, ihren Schlaf und ihr Studium',
+      'Wenn Kinder mehr Zeit mit dem Fernsehen verbringen, haben sie weniger Zeit für andere Aktivitäten',
+      'Kinder leben dann in einer Fantasiewelt',
+    ],
+    opinion: 'Das Handy hat das Fernsehen ersetzt.',
+  },
+{
+    id: 'kann-man-alles-im-internet-glauben',
+    title: 'Kann man alles im Internet glauben?',
+    titleEn: 'Can you believe everything on the internet?',
+    level: 'B1', icon: '🌐', mode: 'procon', prep: 30,
+    desc: 'Vorteile & Nachteile',
+    prompt: 'Kann man alles im Internet glauben?: Vorteile und Nachteile', promptEn: 'Can you believe everything on the internet? — pros and cons',
+    vorteile: [
+      'Es verbessert das Allgemeinwissen',
+      'Wir bekommen viele Informationen über verschiedene Fächer ohne Grenzen, und das kostenlos',
+      'Es verbessert die Kommunikationsfähigkeit',
+      'Man kann neue Sprachen, Kulturen und Freunde kennenlernen',
+    ],
+    nachteile: [
+      'Es besteht die Gefahr, betrogen zu werden',
+      'Man kann süchtig werden',
+      'Manche missbrauchen es',
+      'Es verursacht verschiedene Krankheiten und macht faul und dick',
+    ],
+  },
+{
+    id: 'hotel-mama',
+    title: 'Hotel Mama',
+    titleEn: '"Hotel Mama" (living with parents as an adult)',
+    level: 'B1', icon: '🏡', mode: 'procon', prep: 30,
+    desc: 'Vorteile & Nachteile',
+    prompt: 'Hotel Mama: Vorteile und Nachteile', promptEn: '"Hotel Mama" (living with parents as an adult) — pros and cons',
+    vorteile: [
+      'Man muss sich weniger Sorgen machen',
+      'Man hat keine Sorgen und kann Geld sparen',
+      'Man hat mehr Freizeit und kann sich auf sein Studium konzentrieren',
+      'Wenn sie ein Problem haben, können sie mit ihren Eltern diskutieren und eine Lösung finden',
+      'Sie haben keine finanziellen Probleme',
+      'Sie können ihre Eltern unterstützen',
+      'Wir lernen viele Dinge von unseren Eltern, z.B. wie man das Familienleben organisiert',
+    ],
+    nachteile: [
+      'Sie können nicht selbstständig werden',
+      'Sie bleiben finanziell abhängig',
+      'Sie haben wenig Privatsphäre',
+      'Es besteht das Risiko, miteinander zu streiten',
+    ],
+    opinion: 'Es ist sicher und geborgen, aber jeder sollte irgendwann auf seinen eigenen Füßen stehen. Ich würde sagen, wer ein eigenständiges Leben führen will, ist bei Hotel Mama falsch.',
+  },
+{
+    id: 'haushaltsarbeit',
+    title: 'Haushaltsarbeit',
+    titleEn: 'Housework',
+    level: 'B1', icon: '🧹', mode: 'procon', prep: 30,
+    desc: 'Vorteile & Nachteile',
+    prompt: 'Haushaltsarbeit: Vorteile und Nachteile', promptEn: 'Housework — pros and cons',
+    vorteile: [
+      'Sie verbessert die Einheit und Zusammengehörigkeit',
+      'Sie spart Zeit und macht die Arbeit sehr leicht',
+      'Wir können mit unserer Familie Zeit verbringen',
+      'Man kann eine Überforderung vermeiden',
+      'Manche Arbeit können nur die Männer machen',
+      'Sie stärkt die Beziehung zwischen Familienangehörigen',
+      'Sie ist ein gutes Vorbild für die Kinder',
+    ],
+    nachteile: [
+      'Es kommt zu Streit',
+      'Es gibt weniger Privatleben',
+      'Wenn man mehr Zeit mit der Haushaltsarbeit verbringt, hat man weniger Zeit für anderes',
+    ],
+  },
+{
+    id: 'gesundes-essen',
+    title: 'Gesundes Essen',
+    titleEn: 'Healthy eating',
+    level: 'B1', icon: '🥗', mode: 'procon', prep: 30,
+    desc: 'Vorteile & Nachteile',
+    prompt: 'Gesundes Essen: Vorteile und Nachteile', promptEn: 'Healthy eating — pros and cons',
+    vorteile: [
+      'Eine ausgewogene Ernährung stärkt das Immunsystem und verhindert Mangelerscheinungen',
+      'Sie hilft der körperlichen und geistigen Entwicklung',
+      'Man kann Krankheiten vermeiden, gesund und fit bleiben',
+    ],
+    nachteile: [
+      'Es ist teuer, sodass nicht alle es sich leisten können',
+      'Es ist nicht immer verfügbar',
+      'Bauern benutzen Pestizide, und das Gemüse ist dadurch giftig',
+      'Es ist ein Muss, dass wir unser Leben vorsichtig führen müssen',
+    ],
+  },
+{
+    id: 'gemeinsames-abendessen',
+    title: 'Gemeinsames Abendessen',
+    titleEn: 'Eating dinner together',
+    level: 'B1', icon: '🍽️', mode: 'procon', prep: 30,
+    desc: 'Vorteile & Nachteile',
+    prompt: 'Gemeinsames Abendessen: Vorteile und Nachteile', promptEn: 'Eating dinner together — pros and cons',
+    vorteile: [
+      'Es stärkt die Beziehung zwischen den Familienangehörigen und man verbringt mehr Zeit mit der Familie',
+      'Es fördert eine ausgewogene Ernährung und gute Qualität beim Essen',
+      'Man versteht einander besser und es gibt mehr Liebe, Kultur und Kommunikation',
+      'Wenn wir ein Problem haben, können wir gemeinsam darüber sprechen',
+      'Es baut Stress ab und bietet Erholungsmöglichkeiten',
+      'Es vermeidet schlechtes Verhalten und verbessert die Disziplin',
+      'Es ist ein gutes Vorbild für die Kinder',
+    ],
+    nachteile: [
+      'Es gibt Gelegenheit, miteinander zu streiten',
+      'Man hat keine Privatsphäre',
+      'Es ist nicht immer möglich',
+      'Es braucht mehr Zeit',
+      'Man hat weniger eigene Freiheit',
+    ],
+  },
+{
+    id: 'auswanderung',
+    title: 'Auswanderung',
+    titleEn: 'Emigration',
+    level: 'B1', icon: '🌍', mode: 'procon', prep: 30,
+    desc: 'Vorteile & Nachteile',
+    prompt: 'Auswanderung: Vorteile und Nachteile', promptEn: 'Emigration — pros and cons',
+    vorteile: [
+      'Man kann neue Sprachen, Kulturen und Freunde kennenlernen',
+      'Man kann Sehenswürdigkeiten besichtigen',
+      'Man hat ein besseres, moderneres Leben',
+      'Man bekommt ein höheres Gehalt und bessere Arbeitsbedingungen',
+      'Es erweitert die Mentalität',
+    ],
+    nachteile: [
+      'Es gibt Kommunikationsprobleme und Angst vor der Zukunft',
+      'Der Klimawandel verursacht verschiedene Krankheiten',
+      'Manchmal gibt es Sicherheitsprobleme',
+      'Man bekommt Heimweh',
+      'Das Leben ist sehr teuer',
+      'Wir können uns nicht immer an die Kultur und Lebensweise anpassen',
+      'Es hängt von der Person ab',
+    ],
+  },
+{
+    id: 'bio-essen',
+    title: 'Bio-Essen',
+    titleEn: 'Organic food',
+    level: 'B1', icon: '🥕', mode: 'procon', prep: 30,
+    desc: 'Vorteile & Nachteile',
+    prompt: 'Bio-Essen: Vorteile und Nachteile', promptEn: 'Organic food — pros and cons',
+    vorteile: [
+      'Es stärkt das Immunsystem und verhindert Mangelerscheinungen',
+      'Es hilft der körperlichen und geistigen Entwicklung',
+      'Man kann Krankheiten vermeiden, gesund und fit bleiben',
+      'Es besteht aus Vitaminen und Mineralien',
+      'Es ist umweltfreundlich und unterstützt die Bauern',
+      'Es gibt Sicherheit',
+    ],
+    nachteile: [
+      'Es ist teuer, sodass nicht alle es sich leisten können',
+      'Es ist nicht immer verfügbar',
+      'Es hat nur eine kurze Haltbarkeit',
+      'Manche Bauern benutzen trotzdem Pestizide, und das Gemüse ist dadurch giftig',
+      'Es ist ein Muss, dass wir unser Leben vorsichtig führen müssen (z.B. beim Importieren und Exportieren)',
+    ],
+  },
+{
+    id: 'computer-fuer-jeden-kursraum',
+    title: 'Computer für jeden Kursraum',
+    titleEn: 'A computer in every classroom',
+    level: 'B1', icon: '🖥️', mode: 'procon', prep: 30,
+    desc: 'Vorteile & Nachteile',
+    prompt: 'Computer für jeden Kursraum: Vorteile und Nachteile', promptEn: 'A computer in every classroom — pros and cons',
+    vorteile: [
+      'Es ist sehr effektiv und praktisch',
+      'Es verbessert das Lernen und das Allgemeinwissen, weil man sehen und lernen kann',
+      'Kinder bekommen viele Informationen über verschiedene Fächer',
+      'Es weckt das Interesse der Kinder am Lernen',
+      'Man kann auf dem Laufenden bleiben',
+      'Kinder lernen sehr schnell und einfach mithilfe des Computers',
+      'Es erweitert die Lernfähigkeit',
+      'Es ist einfacher für den Lehrer zu unterrichten',
+    ],
+    nachteile: [
+      'Manchmal gibt es technische Probleme',
+      'Es betrifft die Augen und das Gehirn',
+      'Es gibt Gelegenheit, den Computer zu missbrauchen',
+      'Es zerstört die eigene Fähigkeit zum Lernen, z.B. zum Lesen und Lernen',
+      'Es verursacht Krankheiten',
+    ],
+  },
+{
+    id: 'computerspiel',
+    title: 'Computerspiele',
+    titleEn: 'Computer games',
+    level: 'B1', icon: '🎮', mode: 'procon', prep: 30,
+    desc: 'Vorteile & Nachteile',
+    prompt: 'Computerspiele: Vorteile und Nachteile', promptEn: 'Computer games — pros and cons',
+    vorteile: [
+      'Es ist eine gute Freizeitaktivität',
+      'Es baut Langeweile und Stress ab',
+      'Es verbessert die intellektuelle Fähigkeit, z.B. beim Schach',
+      'Wenn es schlechtes Wetter gibt, sind Computerspiele sehr praktisch',
+      'Man kann mit verschiedenen Computerspielen Geld verdienen',
+    ],
+    nachteile: [
+      'Man wird süchtig danach und gibt viel Geld aus, es macht faul und dick',
+      'Es verursacht Krankheiten, betrifft Augen und Gehirn, und kann zu Depressionen führen',
+      'Es zerstört die eigene Fähigkeit',
+      'Manchmal ist das Spiel gefährlich oder sogar tödlich',
+      'Wenn man mehr Zeit mit Computerspielen verbringt, hat man weniger Zeit für anderes',
+    ],
+  },
+{
+    id: 'leben-auf-dem-land-oder-in-der-stadt',
+    title: 'Das Leben auf dem Land oder in der Stadt',
+    titleEn: 'Life in the countryside or in the city',
+    level: 'B1', icon: '🏙️', mode: 'procon', prep: 30,
+    desc: 'Vorteile & Nachteile',
+    prompt: 'Das Leben auf dem Land oder in der Stadt: Vorteile und Nachteile', promptEn: 'Life in the countryside or in the city — pros and cons',
+    vorteile: [
+      'Land: Es gibt frische Luft und frisches Wasser, und wenig Verschmutzung',
+      'Land: Es gibt eine ruhige Atmosphäre, Spielplätze, große Häuser und Sehenswürdigkeiten',
+      'Land: Es gibt frisches Obst und Gemüse',
+      'Land: Das Leben ist sehr billig und angenehm',
+      'Land: Die Beziehungen sind stärker',
+      'Land: Die Moral der Leute ist sehr nett',
+      'Stadt: Es gibt bessere Arbeitsbedingungen, Einkaufszentren und Verkehrsverbindungen',
+      'Stadt: Es gibt einen kurzen Weg zur Arbeit',
+      'Stadt: Es gibt Bildung und weiterführende Studienmöglichkeiten',
+      'Stadt: Es gibt zahlreiche Freizeitaktivitäten',
+    ],
+    nachteile: [
+      'Land: Es gibt wenig Arbeitsmöglichkeiten und Einkaufszentren sowie schlechte Verkehrsverbindungen',
+      'Land: Es gibt wenige Einrichtungen wie Krankenhäuser und Schulen',
+      'Stadt: Die Umweltverschmutzung verursacht verschiedene Krankheiten',
+      'Stadt: Das Leben ist viel teurer als auf dem Land',
+      'Stadt: Die Kriminalität ist sehr hoch',
+      'Stadt: Die Zahl der Unfälle ist sehr hoch',
+      'Stadt: Die Umgebung ist überfüllt',
+    ],
+  },
+{
+    id: 'sollen-die-jugendlichen-bei-den-eltern-wohnen',
+    title: 'Sollen die Jugendlichen bei den Eltern wohnen?',
+    titleEn: 'Should young adults live with their parents?',
+    level: 'B1', icon: '👨‍👩‍👧', mode: 'procon', prep: 30,
+    desc: 'Vorteile & Nachteile',
+    prompt: 'Sollen die Jugendlichen bei den Eltern wohnen?: Vorteile und Nachteile', promptEn: 'Should young adults live with their parents? — pros and cons',
+    vorteile: [
+      'Man muss sich weniger Sorgen machen',
+      'Man hat keine Sorgen und kann Geld sparen',
+      'Man hat mehr Freizeit und kann sich auf sein Studium konzentrieren',
+      'Wenn sie ein Problem haben, können sie mit ihren Eltern diskutieren und eine Lösung finden',
+      'Sie haben keine finanziellen Probleme',
+      'Sie können ihre Eltern unterstützen',
+      'Wir lernen viele Dinge von unseren Eltern, z.B. wie man ein Familienleben organisiert',
+    ],
+    nachteile: [
+      'Sie können nicht selbstständig werden',
+      'Sie bleiben finanziell abhängig',
+      'Sie haben wenig Privatsphäre und Freiheit',
+      'Es gibt Gelegenheit, miteinander zu streiten',
+    ],
+    opinion: 'Es ist sicher und geborgen, aber jeder sollte irgendwann auf seinen eigenen Füßen stehen. Ich würde sagen, wer ein eigenständiges Leben führen möchte, muss allein wohnen.',
+  },
+{
+    id: 'alle-generationen-zusammenleben',
+    title: 'Alle Generationen zusammenleben',
+    titleEn: 'All generations living together',
+    level: 'B1', icon: '👴', mode: 'procon', prep: 30,
+    desc: 'Vorteile & Nachteile',
+    prompt: 'Alle Generationen zusammenleben: Vorteile und Nachteile', promptEn: 'All generations living together — pros and cons',
+    vorteile: [
+      'Es baut Stress ab',
+      'Wenn sie ein Problem haben, können sie miteinander diskutieren und eine Lösung finden',
+      'Es hilft gegen Langeweile und Einsamkeit',
+      'Es verbessert die Einheit und Zusammengehörigkeit',
+      'Es stärkt die Beziehung zwischen den Familienangehörigen, und man verbringt mehr Zeit mit der Familie',
+      'Wir können den Wert des Lebens lernen',
+      'Es ist ein gutes Vorbild für die Kinder',
+    ],
+    nachteile: [
+      'Kinder können nicht selbstständig werden',
+      'Es besteht finanzielle Abhängigkeit',
+      'Es gibt wenig Privatsphäre',
+      'Es gibt Gelegenheit, miteinander zu streiten',
+      'Man hat keine eigene Freiheit',
+    ],
+    opinion: 'Es ist eine unvergessliche Erfahrung, ein aufregendes Gefühl und ein ausgezeichnetes Erlebnis.',
+  },
+{
+    id: 'feste-feiern-mit-oder-ohne-familie',
+    title: 'Feste feiern mit oder ohne Familie',
+    titleEn: 'Celebrating holidays with or without family',
+    level: 'B1', icon: '🎉', mode: 'procon', prep: 30,
+    desc: 'Vorteile & Nachteile',
+    prompt: 'Feste feiern mit oder ohne Familie: Vorteile und Nachteile', promptEn: 'Celebrating holidays with or without family — pros and cons',
+    vorteile: [
+      'Es stärkt die Beziehung, man verbringt Zeit mit der Familie, und es baut Stress ab',
+      'Es ist sehr angenehm und verbessert die Einheit und Zusammengehörigkeit',
+      'Es ist ein gutes Vorbild für die neue Generation',
+    ],
+    nachteile: [
+      'Man hat wenig Freiheit und Privatsphäre',
+      'Es ist teuer, und manchmal gibt es Gelegenheit zu streiten oder die Freiheit zu missbrauchen',
+      'Es kann zu schlechtem Verhalten kommen',
+      'Es entstehen finanzielle Probleme',
+    ],
+  },
+{
+    id: 'moderne-bekleidung',
+    title: 'Moderne Bekleidung',
+    titleEn: 'Modern clothing',
+    level: 'B1', icon: '👗', mode: 'procon', prep: 30,
+    desc: 'Vorteile & Nachteile',
+    prompt: 'Moderne Bekleidung: Vorteile und Nachteile', promptEn: 'Modern clothing — pros and cons',
+    vorteile: [
+      'Moderne Kleidung hält sehr lange und ist von besserer Qualität',
+      'Man ist beliebter und wird mehr akzeptiert',
+      'Man fühlt sich besser, weil das Selbstvertrauen und das Aussehen sich verbessern',
+      'Man geht mit der Mode',
+      'Man kann seine Persönlichkeit ausdrücken und bekommt mehr Aufmerksamkeit',
+    ],
+    nachteile: [
+      'Moderne Kleidung ist teuer, sodass nicht alle Menschen sich das leisten können',
+      'Sie ist ein falsches Vorbild für die neue Generation',
+      'Man sollte Leute nicht nach ihrem Aussehen bewerten',
+      'Sie steht gegen Kultur und Tradition, sodass ältere Menschen sie nicht akzeptieren können',
+      'Durch die Herstellung moderner Kleidung wird die Umwelt verschmutzt',
+    ],
+    opinion: 'Jeder sollte anziehen, was er will und was ihm gefällt. Man kann auch ohne moderne Kleidung mit der Mode gehen.',
+  },
+{
+    id: 'musik-im-alltag',
+    title: 'Musik im Alltag',
+    titleEn: 'Music in everyday life',
+    level: 'B1', icon: '🎵', mode: 'procon', prep: 30,
+    desc: 'Vorteile & Nachteile',
+    prompt: 'Musik im Alltag: Vorteile und Nachteile', promptEn: 'Music in everyday life — pros and cons',
+    vorteile: [
+      'Sie baut Stress und Langeweile ab',
+      'Wenn man selbst seine Lieblingsmusik hört, empfindet man ein sehr gutes Gefühl',
+      'Musik macht glücklicher und macht das Leben sehr frisch',
+      'Musik heilt und lindert Schmerzen, z.B. bei Depressionen',
+      'Musik wird als Therapie benutzt',
+    ],
+    nachteile: [
+      'Laute Musik schadet oft den Ohren',
+      'Übermäßige Nutzung von Musik kann schaden',
+      'Wenn wir während der Fahrt Musik hören, kann das Unfälle verursachen',
+    ],
+    opinion: 'Heutzutage spielt Musik eine große Rolle im Leben vieler Menschen. Es gibt verschiedene Musikrichtungen, z.B. Rock, Pop und Jazz. Verschiedene Musikrichtungen stammen z.B. aus Indien.',
+  },
+{
+    id: 'handyverbot-in-der-schule',
+    title: 'Handyverbot in der Schule',
+    titleEn: 'Mobile phone ban in school',
+    level: 'B1', icon: '🔕', mode: 'procon', prep: 30,
+    desc: 'Vorteile & Nachteile',
+    prompt: 'Handyverbot in der Schule: Vorteile und Nachteile', promptEn: 'Mobile phone ban in school — pros and cons',
+    vorteile: [
+      'Kinder können sich auf das Studium konzentrieren',
+      'Es verbessert die eigene Fähigkeit',
+      'Es vermeidet schlechtes Verhalten, z.B. fördert es die Disziplin',
+      'Es ist ein gutes Vorbild für die neue Generation',
+    ],
+    nachteile: [
+      'Keine Erreichbarkeit bei Notfällen, was die Sicherheit betrifft',
+      'Keine Gelegenheit zu recherchieren, z.B. für Projekte',
+      'Handys unterstützen das Lern-Engagement',
+      'Keine Beschäftigung in der Pause',
+    ],
+  },
+{
+    id: 'junge-leute-alleine-essen',
+    title: 'Junge Leute essen allein',
+    titleEn: 'Young people eating alone',
+    level: 'B1', icon: '🍜', mode: 'procon', prep: 30,
+    desc: 'Vorteile & Nachteile',
+    prompt: 'Junge Leute essen allein: Vorteile und Nachteile', promptEn: 'Young people eating alone — pros and cons',
+    vorteile: [
+      'Sie haben mehr Freiheit und Privatsphäre',
+      'Sie sparen Zeit und essen, was ihnen gefällt',
+      'Sie können sich auf andere Aktivitäten konzentrieren',
+      'Sie können verschiedene Gerichte ausprobieren und zubereiten',
+    ],
+    nachteile: [
+      'Es gibt weniger Beziehung und Kommunikation',
+      'Sie können nicht mehr Zeit mit der Familie verbringen',
+      'Es ist langweilig',
+      'Es ist ein falsches Vorbild für die neue Generation',
+    ],
+  },
+{
+    id: 'sollen-kinder-im-kindergarten-fremdsprachen-lernen',
+    title: 'Sollen Kinder im Kindergarten Fremdsprachen lernen?',
+    titleEn: 'Should children learn foreign languages in kindergarten?',
+    level: 'B1', icon: '🗣️', mode: 'procon', prep: 30,
+    desc: 'Vorteile & Nachteile',
+    prompt: 'Sollen Kinder im Kindergarten Fremdsprachen lernen?: Vorteile und Nachteile', promptEn: 'Should children learn foreign languages in kindergarten? — pros and cons',
+    vorteile: [
+      'Es ist das optimale Lernalter für Sprachen',
+      'Die kognitive Entwicklung wird gefördert',
+      'Es fördert ein allgemein besseres Sprachverständnis',
+      'Es bereitet den Weg für die Zukunft',
+      'Kinder lernen eine neue Sprache schneller als Erwachsene',
+      'Wenn Kinder eine neue Sprache im Kindergarten lernen, können sie diese Sprache besser beherrschen',
+      'Es ist eine große Hilfe für weiterführende Studien und für die Arbeit im Ausland',
+      'Man kann neue Kulturen und Traditionen kennenlernen',
+      'Es verbessert die Kommunikationsfähigkeit',
+    ],
+    nachteile: [
+      'Es kann eine Überforderung für manche Kinder sein',
+      'Die Entwicklung der Muttersprache verzögert sich',
+      'Es ist eine Belastung für die Kinder',
+      'Kinder stehen unter Druck',
+      'Es ist teuer',
+    ],
+    opinion: 'Das Lernen ist ein lebenslanger Prozess, und wir lernen viele Dinge von unserer Geburt bis zu unserem Tod. Ich könnte diese Sprache dann selbst gut beherrschen.',
+  },
+{
+    id: 'essen-wir-zu-viele-suessigkeiten',
+    title: 'Essen wir zu viele Süßigkeiten?',
+    titleEn: 'Do we eat too much candy/sweets?',
+    level: 'B1', icon: '🍬', mode: 'procon', prep: 30,
+    desc: 'Vorteile & Nachteile',
+    prompt: 'Essen wir zu viele Süßigkeiten?: Vorteile und Nachteile', promptEn: 'Do we eat too much candy/sweets? — pros and cons',
+    vorteile: [
+      'Süßigkeiten bieten viel Energie und Dopamin für Menschen an',
+      'Menschen fühlen sich dadurch aufgeregt und glücklich',
+      'Das Wohlbefinden steigt',
+      'Es ist ein neues Geschmackserlebnis',
+      'Es gibt positive Effekte auf den Körper',
+      'Süßigkeiten enthalten mehr als nur Zucker',
+    ],
+    nachteile: [
+      'Süßigkeiten machen dick, süchtig und krank',
+      'Sie verursachen Krankheiten, Übergewicht und Diabetes',
+    ],
+    opinion: 'Manche Süßigkeiten sind hausgemacht bzw. selbstgemacht, z.B. als Nachtisch.',
+  },
+{
+    id: 'kinder-und-internet',
+    title: 'Kinder und Internet',
+    titleEn: 'Children and the internet',
+    level: 'B1', icon: '💻', mode: 'procon', prep: 30,
+    desc: 'Vorteile & Nachteile',
+    prompt: 'Kinder und Internet: Vorteile und Nachteile', promptEn: 'Children and the internet — pros and cons',
+    vorteile: [
+      'Kinder bekommen schnell und einfach Zugang zu Informationen aus der ganzen Welt',
+      'Kinder können den Kontakt mit Familie und Freunden verbessern',
+      'Kinder können einfach ihre Lieblingsmusik oder Filme suchen',
+    ],
+    nachteile: [
+      'Kinder werden süchtig nach dem Internet und missbrauchen es',
+      'Übermäßige Nutzung des Internets verursacht verschiedene Krankheiten, macht faul und führt zu Übergewicht',
+      'Es betrifft die Augen und das Gehirn',
+      'Kinder verlieren eigene Fähigkeiten, und das Internet zerstört ihre Zukunft, ihren Schlaf und ihr Studium',
+      'Wenn Kinder mehr Zeit mit dem Internet verbringen, haben sie weniger Zeit für andere Aktivitäten',
+      'Die Nutzung des Internets muss kontrolliert werden',
+    ],
+  },
+{
+    id: 'getrennte-schulen',
+    title: 'Getrennte Schulen (nach Geschlecht)',
+    titleEn: 'Single-sex schools vs. mixed schools',
+    level: 'B1', icon: '🏫', mode: 'procon', prep: 30,
+    desc: 'Vorteile & Nachteile',
+    prompt: 'Getrennte Schulen (nach Geschlecht): Vorteile und Nachteile', promptEn: 'Single-sex schools vs. mixed schools — pros and cons',
+    vorteile: [
+      'Kinder können sich besser auf ihr Studium konzentrieren',
+      'Es fördert die Einheit',
+      'Es gibt mehr Freiheit',
+      'Es verbessert das Selbstvertrauen und macht aktiver',
+    ],
+    nachteile: [
+      'Es ist schwierig, sich mit dem anderen Geschlecht zu vermischen',
+      'Sie stehen unter Druck',
+      'Es beeinflusst das Verhalten in der Zukunft',
+      'Es gibt Kommunikationsprobleme',
+    ],
+    opinion: 'Es geht letztlich um die Trennung der Geschlechter, ob in gemischten oder getrennten Schulen.',
+  },
+{
+    id: 'umweltverschmutzung',
+    title: 'Umweltverschmutzung',
+    titleEn: 'Environmental pollution',
+    level: 'B1', icon: '🏭', mode: 'procon', prep: 30,
+    desc: 'Vorteile & Nachteile',
+    prompt: 'Umweltverschmutzung: Vorteile und Nachteile', promptEn: 'Environmental pollution — pros and cons',
+    vorteile: [],
+    nachteile: [
+      'Sie verursacht verschiedene Krankheiten, z.B. Lungenkrankheiten, Krebs, Allergien und Atemprobleme',
+      'Sie macht unser Leben sehr schwierig, weil wir uns nicht frei bewegen können',
+      'Umweltverschmutzung schadet der Ozonschicht',
+      'Sie vergrößert die Erderwärmung',
+      'Sie betrifft die Pflanzen und Tiere',
+      'Sie verbreitet Krankheiten',
+    ],
+    opinion: 'Die Gründe für die Umweltverschmutzung sind die rasche Zunahme der Bevölkerung, fehlende Abwasserbehandlung, fehlende Müllbehandlung, das Wegwerfen von Müll auf die Straße und in Flüsse, sowie Firmen, Industrie, Verkehrsmittel, die Abgase produzieren, und Abholzung. Jeder muss etwas gegen die Umweltverschmutzung tun, damit wir unsere Zukunft sichern können. Es ist unsere Pflicht und Verantwortung, dass wir etwas gegen die Umweltverschmutzung tun. Wir müssen für die zukünftigen Generationen die frische Luft und das frische Wasser garantieren. Mit Umweltschutz können wir auch den nachfolgenden Generationen ein lebenswertes Leben ermöglichen. Wenn wir uns um die Umwelt kümmern, kümmert sich die Umwelt auch um uns. Wir sollten umweltfreundlich leben, um die Erde, die Luft und das Wasser sauber zu halten. Umweltschutz ist wichtig, um die Gesundheit der Menschen zu erhalten. Je mehr wir die Umwelt schützen, desto länger leben wir.',
+  },
+{
+    id: 'sollen-die-maenner-beim-haushalt-helfen',
+    title: 'Sollen die Männer beim Haushalt helfen?',
+    titleEn: 'Should men help with housework?',
+    level: 'B1', icon: '🧺', mode: 'procon', prep: 30,
+    desc: 'Vorteile & Nachteile',
+    prompt: 'Sollen die Männer beim Haushalt helfen?: Vorteile und Nachteile', promptEn: 'Should men help with housework? — pros and cons',
+    vorteile: [
+      'Es verbessert die Einheit und Zusammengehörigkeit',
+      'Es spart Zeit und macht die Arbeit sehr leicht',
+      'Die Männer können mit der Familie Zeit verbringen',
+      'Man kann eine Überforderung vermeiden',
+      'Manche Arbeit können nur die Männer machen',
+      'Es stärkt die Beziehung zwischen den Familienangehörigen',
+      'Es ist ein gutes Vorbild für die Kinder',
+    ],
+    nachteile: [
+      'Es kommt zu Streit',
+      'Es gibt weniger Privatleben',
+      'Wenn sie mehr Zeit mit der Haushaltsarbeit verbringen, sind sie faul und müde',
+    ],
+  },
+{
+    id: 'extremsport',
+    title: 'Extremsport',
+    titleEn: 'Extreme sports',
+    level: 'B1', icon: '🧗', mode: 'procon', prep: 30,
+    desc: 'Vorteile & Nachteile',
+    prompt: 'Extremsport: Vorteile und Nachteile', promptEn: 'Extreme sports — pros and cons',
+    vorteile: [
+      'Man kann seine eigenen Grenzen kennenlernen',
+      'Man fühlt sich lebendig und kann etwas Außergewöhnliches erleben',
+      'Es steigert das Selbstvertrauen',
+      'Man bekommt Anerkennung durch Wettkämpfe',
+      'Es hilft, Ängste zu überwinden',
+    ],
+    nachteile: [
+      'Es ist gefährlich und bedeutet einen enormen Leistungsdruck',
+      'Es bedeutet eine Ausbeutung des Körpers',
+      'Es kann schwere Verletzungen verursachen',
+      'Es besteht eine Suchtgefahr und ein Risiko',
+      'Man vernachlässigt die Familie und spielt mit seinem Leben',
+    ],
+  },
+{
+    id: 'kinder-und-musiklernen',
+    title: 'Kinder und Musiklernen',
+    titleEn: 'Children learning music',
+    level: 'B1', icon: '🎹', mode: 'procon', prep: 30,
+    desc: 'Vorteile & Nachteile',
+    prompt: 'Kinder und Musiklernen: Vorteile und Nachteile', promptEn: 'Children learning music — pros and cons',
+    vorteile: [
+      'Die Kreativität der Kinder wird gefördert',
+      'Musik lenkt von Ablenkungen von draußen ab',
+      'Musik beeinflusst die Stimmung der Kinder positiv',
+      'Musikunterricht hilft, das Gedächtnis zu entwickeln',
+      'Musizieren steigert die kognitiven Fähigkeiten und die Konzentration',
+      'Ein Instrument zu erlernen fördert Geduld und Durchhaltevermögen',
+      'Aktives Musikmachen kann Intelligenz und Sprachvermögen fördern',
+      'Musizieren stärkt das Selbstvertrauen, eine positive Eigenschaft fürs Leben',
+      'Es steigert die soziale Kompetenz im Miteinander',
+    ],
+    nachteile: [
+      'Kinder haben weniger Freizeit, um andere Dinge zu tun',
+      'Es kann zu Überforderung und Belastung führen',
+      'Sie können sich weniger auf das Studium konzentrieren',
+      'Es ist teuer',
+    ],
+  }
+];
+const TOPICS=[
+  ...B1_PROCON_TOPICS,
+  {id:'viel-geld-lotto', level:'B1', icon:'🎰', title:'Viel Geld im Lotto', desc:'3 wishes if you won the lottery', mode:'monologue', prep:30,
+    prompt:'Stellen Sie sich vor, Sie haben im Lotto viel Geld gewonnen. Nennen Sie drei Wünsche, die Sie sich damit erfüllen möchten.',
+    promptEn:"Imagine you won a lot of money in the lottery. Name three wishes you'd fulfill with it.",
+    modelAnswer:'Wenn ich im Lotto viel Geld gewinne, möchte ich mir folgende drei Wünsche erfüllen. Zuerst möchte ich ein Haus kaufen, denn Häuser sind in der Schweiz sehr teuer, und das Geld könnte mir helfen, meinen Traum zu erfüllen. Zweitens würde ich gerne in die Antarktis reisen, denn Reisen ist mein liebstes Hobby, und die Antarktis ist normalerweise sehr teuer — ich möchte die Gletscher, die Pinguine und den antarktischen Ozean sehen. Abschließend möchte ich auch Geld für wohltätige Zwecke spenden, denn es gibt viele Menschen, die das Geld brauchen, und ich würde mich freuen, wenn ich ihnen helfen könnte. Zusammenfassend sind das meine drei Wünsche.'},
+  {id:'in-zwei-jahren', level:'B1', icon:'🔮', title:'In zwei Jahren', desc:'Where do you see yourself in 2 years?', mode:'monologue', prep:30,
+    prompt:'Wo sehen Sie sich in zwei Jahren?', promptEn:'Where do you see yourself in two years?',
+    modelAnswer:'In zwei Jahren hoffe ich, dass sich in meinem Leben nicht allzu viel verändert. Ich möchte weiterhin bei meiner Firma arbeiten, weil mir mein Job sehr gut gefällt und ich nette Kollegen habe. Beruflich würde ich gerne mehr Verantwortung übernehmen und vielleicht ein kleines Team leiten. Privat wünsche ich mir, dass meine Deutschkenntnisse noch besser werden, damit ich mich im Alltag ganz sicher fühle. Außerdem möchte ich mit meiner Familie noch mehr von der Schweiz entdecken, zum Beispiel neue Kantone und Berge besuchen.'},
+  {id:'reiseziele', level:'B1', icon:'✈️', title:'Drei Reiseziele', desc:'3 places you would like to travel to', mode:'monologue', prep:30,
+    prompt:'Wohin würden Sie gerne reisen? Nennen Sie drei Reiseziele.', promptEn:"Where would you like to travel? Name three destinations.",
+    modelAnswer:'Wenn ich frei wählen könnte, würde ich gerne an drei Orte reisen. Zuerst möchte ich nach Japan fahren, weil mich die Kultur und das Essen sehr interessieren. Zweitens würde ich gerne Norwegen besuchen, um die Fjorde und das Nordlicht zu sehen. Drittens möchte ich noch einmal nach Italien reisen, weil ich die Küche und das Meer dort sehr liebe. Reisen ist für mich eine gute Gelegenheit, neue Kulturen kennenzulernen und mich zu entspannen.'},
+  {id:'interessante-person', level:'B1', icon:'🧑‍🤝‍🧑', title:'Eine interessante Person', desc:'Describe a person you find interesting', mode:'monologue', prep:30,
+    prompt:'Erzählen Sie von einer Person, die Sie sehr interessant finden.', promptEn:'Talk about a person you find very interesting.',
+    modelAnswer:'Eine Person, die ich sehr interessant finde, ist meine Großmutter. Sie ist über achtzig Jahre alt, aber sie ist immer noch sehr aktiv und neugierig. Sie hat in ihrem Leben viel erlebt und reist trotz ihres Alters noch gerne. Was ich an ihr besonders bewundere, ist ihre positive Einstellung — sie beschwert sich nie und findet immer eine Lösung für Probleme. Ich telefoniere jede Woche mit ihr, und sie gibt mir oft gute Ratschläge fürs Leben.'},
+  {id:'zukunft-transport', level:'B1', icon:'🚄', title:'Zukunft des Transports', desc:'What do you think about the future of transport?', mode:'monologue', prep:30,
+    prompt:'Was denken Sie über die Zukunft des Transports?', promptEn:'What do you think about the future of transport?',
+    modelAnswer:'Ich denke, dass sich der Transport in Zukunft stark verändern wird. Immer mehr Menschen werden Elektroautos und öffentliche Verkehrsmittel benutzen, weil das besser für die Umwelt ist. Auch das Fahrrad wird in den Städten immer wichtiger, besonders für kurze Strecken. Ich glaube, dass autonome, also selbstfahrende Autos in den nächsten Jahren normal werden. Für mich persönlich ist es wichtig, dass der Transport günstiger und umweltfreundlicher wird.'},
+  {id:'zukunft-arbeitszeit', level:'B1', icon:'⏰', title:'Zukunft der Arbeitszeit', desc:'What do you think about the future of working hours?', mode:'monologue', prep:30,
+    prompt:'Was denken Sie über die Zukunft der Arbeitszeit?', promptEn:'What do you think about the future of working hours?',
+    modelAnswer:'Ich denke, dass sich die Arbeitszeit in Zukunft flexibler gestalten wird. Immer mehr Firmen bieten Homeoffice und flexible Arbeitszeiten an, weil das die Mitarbeiter zufriedener macht. Manche Länder diskutieren sogar über die Vier-Tage-Woche. Ich finde diese Entwicklung positiv, weil man dadurch Beruf und Familie besser vereinbaren kann. Trotzdem denke ich, dass persönlicher Kontakt im Büro auch weiterhin wichtig bleibt.'},
+  {id:'homeoffice', level:'B2', icon:'🏡', title:'Home-Office', desc:'Vorteile & Nachteile', mode:'procon', prep:90,
+    prompt:'Home-Office: Vorteile und Nachteile', promptEn:'Remote work: pros and cons',
+    vorteile:['Man spart Zeit und Geld, weil man nicht pendeln muss.','Man kann die Arbeitszeit flexibler einteilen.','Es ist einfacher, Beruf und Familie zu vereinbaren.','Man kann konzentrierter arbeiten, weil es weniger Ablenkung im Büro gibt.'],
+    nachteile:['Man hat weniger persönlichen Kontakt mit den Kollegen.','Die Kommunikation im Team kann schwieriger sein.','Manche Menschen fühlen sich zu Hause einsamer.','Es ist schwieriger, Arbeit und Freizeit zu trennen.']},
+  {id:'bargeldlos-zahlen', level:'B2', icon:'💳', title:'Kontaktlos zahlen oder Bargeld', desc:'Vorteile & Nachteile', mode:'procon', prep:90,
+    prompt:'Kontaktlose Zahlung oder Bargeld?', promptEn:'Cashless payment or cash?',
+    vorteile:['Bezahlen mit Karte oder Handy ist schnell und praktisch.','Man muss kein Bargeld mit sich tragen.','Es ist hygienischer, weil man nichts anfassen muss.','Man kann seine Ausgaben leichter kontrollieren.'],
+    nachteile:['Nicht jeder Laden akzeptiert Kartenzahlung.','Bei technischen Problemen kann man gar nicht bezahlen.','Manche Menschen geben mit Karte schneller mehr Geld aus.','Ältere Menschen haben manchmal Mühe mit der Technik.']},
+  {id:'zensur-soziale-medien', level:'B2', icon:'📱', title:'Zensur in sozialen Netzwerken', desc:'Vorteile & Nachteile', mode:'procon', prep:90,
+    prompt:'Zensur in sozialen Netzwerken', promptEn:'Censorship on social media',
+    vorteile:['Zensur kann Falschinformationen und Hassrede verhindern.','Kinder und Jugendliche werden besser geschützt.','Weniger Betrug und Gewalt im Internet.'],
+    nachteile:['Zensur kann die Meinungsfreiheit einschränken.','Es ist schwierig zu entscheiden, was zensiert werden soll.','Firmen oder Regierungen könnten die Zensur missbrauchen.']},
+  {id:'online-shopping', level:'B2', icon:'🛒', title:'Online-Shopping oder Geschäft', desc:'Vorteile & Nachteile', mode:'procon', prep:90,
+    prompt:'Online-Shopping oder Einkaufen im Geschäft?', promptEn:'Online shopping or in-person stores?',
+    vorteile:['Man kann rund um die Uhr einkaufen, ohne das Haus zu verlassen.','Die Auswahl ist meistens größer und die Preise oft günstiger.','Man kann Preise einfach vergleichen.'],
+    nachteile:['Man kann die Ware vorher nicht anfassen oder anprobieren.','Die Lieferung dauert manchmal lange.','Kleine, lokale Geschäfte verlieren Kunden.']},
+  {id:'gesundheitscheck-fahrer', level:'B2', icon:'🚗', title:'Gesundheitscheck für Autofahrer', desc:'Vorteile & Nachteile — Alter 70 oder 75', mode:'procon', prep:90,
+    prompt:'Gesundheitscheck für Autofahrer: mit 70 oder erst mit 75 Jahren?', promptEn:'Mandatory medical checkup for drivers: at age 70 or 75?',
+    vorteile:['Ein späterer Gesundheitscheck gibt älteren Menschen mehr Unabhängigkeit.','Nicht jeder wird mit 70 Jahren automatisch fahruntüchtig.','Man diskriminiert die Fahrer nicht nur wegen ihres Alters.'],
+    nachteile:['Mit zunehmendem Alter steigt das Unfallrisiko.','Ein späterer Check könnte die Sicherheit auf der Straße verringern.','Manche Menschen bemerken ihre eigenen Einschränkungen nicht.']},
+  {id:'ladenoeffnungszeiten', level:'B2', icon:'🏬', title:'Längere Ladenöffnungszeiten', desc:'Vorteile & Nachteile', mode:'procon', prep:90,
+    prompt:'Längere Ladenöffnungszeiten an Wochentagen und am Sonntag?', promptEn:'Extending shop opening hours on weekdays and Sundays?',
+    vorteile:['Berufstätige Menschen hätten mehr Zeit zum Einkaufen.','Es wäre praktischer für Familien und Touristen.','Es könnte neue Arbeitsplätze schaffen.'],
+    nachteile:['Angestellte im Verkauf hätten weniger freie Zeit und Wochenenden.','Kleine Geschäfte könnten sich längere Öffnungszeiten nicht leisten.','Der Sonntag als Ruhetag für die Familie würde verschwinden.']},
+  {id:'teilzeitarbeit', level:'B2', icon:'⏳', title:'Teilzeitarbeit', desc:'Vorteile & Nachteile', mode:'procon', prep:90,
+    prompt:'Teilzeitarbeit: Vorteile und Nachteile', promptEn:'Part-time work: pros and cons',
+    vorteile:['Man hat mehr Zeit für Familie, Hobbys oder Weiterbildung.','Man kann Beruf und Privatleben besser vereinbaren.','Weniger Stress und ein besseres Gleichgewicht im Leben.'],
+    nachteile:['Man verdient weniger Geld.','Die Aufstiegschancen im Beruf sind manchmal geringer.','Manche Aufgaben sind schwieriger zu erledigen, wenn man nicht jeden Tag arbeitet.']},
+  {id:'hund-im-buero', level:'B2', icon:'🐕', title:'Hund mit ins Büro nehmen', desc:'Vorteile & Nachteile', mode:'procon', prep:90,
+    prompt:'Den Hund mit ins Büro nehmen?', promptEn:'Bringing your dog to the office?',
+    vorteile:['Der Hund muss nicht den ganzen Tag allein zu Hause bleiben.','Ein Hund im Büro kann Stress reduzieren.','Es fördert den Kontakt und die gute Stimmung unter den Kollegen.'],
+    nachteile:['Nicht alle Kollegen mögen Hunde oder sind allergisch.','Ein Hund kann bei der Arbeit ablenken.','Nicht jedes Büro ist für Tiere geeignet.']}
 ];
 const TALK_TINTS=['q','s','m','p','b'];
 let talkScenario=null, talkIdx=0, talkMsgs=[], talkAwaitingUser=false, talkListening=false, talkShowEn=false, talkHandsFree=true, talkAttempts=0;
+let monoTopic=null, monoPhase='intro', monoPrepLeft=0, monoPrepTimerId=null, monoTranscript='', monoListening=false;
 
 function speechPlugin(){
   return (window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform()
@@ -7967,30 +8913,42 @@ function matchesTurn(turn, said){
 
 function renderTalk(){
   const el=document.getElementById('screen-talk');
-  const groups=['A1','A2','B1','B2','C1'].map(L=>({L,items:SCENARIOS.filter(sc=>sc.level===L)})).filter(g=>g.items.length);
-  const html=groups.map(g=>`
-    <div class="set-label">${g.L}</div>
-    ${g.items.map(sc=>{
-      const tint=TALK_TINTS[SCENARIOS.indexOf(sc)%TALK_TINTS.length];
-      return `<div class="game-tile" onclick="openTalk('${sc.id}')"><div class="gi ${tint}">${sc.icon}</div><div><div class="gt">${sc.title}</div><div class="gd">${sc.desc}</div></div></div>`;
-    }).join('')}
-  `).join('');
   el.innerHTML=`
     <div class="section-head"><div><h1 class="title">🎙️ Sprechen</h1><div class="sub">Hands-free speaking practice</div></div></div>
-    <div class="banner acc">🎙️ Pick a scenario — I'll speak German out loud, then it's your turn to reply out loud. TTS works fully offline; voice recognition uses your phone's built-in speech engine (needs an internet connection on most devices).</div>
-    ${html}
+    <div class="banner acc">🎙️ A1/A2: back-and-forth dialogues — reply out loud. B1/B2: exam-style topics — prep time, then speak non-stop, just like the real SDS test.</div>
+    <input class="search-box" id="talkSearch" placeholder="🔍 Thema suchen…" oninput="renderTalkList()">
+    <div id="talkList"></div>
     <div style="height:20px"></div>`;
+  renderTalkList();
+}
+function renderTalkList(){
+  const box=document.getElementById('talkList'); if(!box) return;
+  const all=[...SCENARIOS, ...TOPICS];
+  const q=(document.getElementById('talkSearch')?document.getElementById('talkSearch').value:'').toLowerCase().trim();
+  const filtered = q ? all.filter(sc=>sc.title.toLowerCase().includes(q) || (sc.desc||'').toLowerCase().includes(q)) : all;
+  const tile=sc=>{
+    const tint=TALK_TINTS[all.indexOf(sc)%TALK_TINTS.length];
+    return `<div class="game-tile" onclick="openTalk('${sc.id}')"><div class="gi ${tint}">${sc.icon}</div><div><div class="gt">${sc.title}</div><div class="gd">${sc.desc}</div></div></div>`;
+  };
+  box.innerHTML = ['A1','A2','B1','B2','C1'].map(L=>{
+    const items=filtered.filter(sc=>sc.level===L);
+    if(!items.length) return '';
+    return `<div class="set-label">${L}</div>${items.map(tile).join('')}`;
+  }).join('') || '<div class="empty">No topics match your search.</div>';
 }
 
 function openTalk(id){
-  talkScenario=SCENARIOS.find(x=>x.id===id);
-  if(!talkScenario) return;
-  talkIdx=0; talkMsgs=[]; talkShowEn=false; talkAwaitingUser=false; talkListening=false; talkAttempts=0;
+  const all=[...SCENARIOS, ...TOPICS];
+  const sc=all.find(x=>x.id===id);
+  if(!sc) return;
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById('screen-talk').classList.add('active');
   document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('active', b.dataset.s==='talk'));
-  renderTalkPlayer();
   document.getElementById('app').scrollTop=0;
+  if(sc.mode==='monologue' || sc.mode==='procon'){ openMonologue(sc); return; }
+  talkScenario=sc;
+  talkIdx=0; talkMsgs=[]; talkShowEn=false; talkAwaitingUser=false; talkListening=false; talkAttempts=0;
+  renderTalkPlayer();
   setTimeout(botSpeak,300);
 }
 
@@ -8148,11 +9106,143 @@ function stopTalk(){
   const tts=nativeTTS(); if(tts){ try{ tts.stop(); }catch(e){} }
   if(window.speechSynthesis){ try{ speechSynthesis.cancel(); }catch(e){} }
   talkScenario=null;
+  clearInterval(monoPrepTimerId); monoPrepTimerId=null; monoListening=false; monoTopic=null;
 }
 
 function closeTalk(){
   stopTalk();
   renderTalk();
+}
+
+/* =========================================================
+   MONOLOGUE / PROCON — exam-style B1/B2 speaking topics
+   (prep timer, then speak non-stop; review against a model answer)
+   ========================================================= */
+function openMonologue(sc){
+  monoTopic=sc; monoPhase='intro'; monoPrepLeft=sc.prep||30; monoTranscript=''; monoListening=false;
+  clearInterval(monoPrepTimerId); monoPrepTimerId=null;
+  renderMonoPlayer();
+}
+
+function renderModelAnswer(sc){
+  if(sc.vorteile || sc.nachteile){
+    return `
+      <div class="procon-h pro">✅ Vorteile</div>
+      ${(sc.vorteile||[]).map(v=>`<div class="procon-item">${v}</div>`).join('')}
+      <div class="procon-h con">⚠️ Nachteile</div>
+      ${(sc.nachteile||[]).map(v=>`<div class="procon-item">${v}</div>`).join('')}
+      ${sc.opinion?`<div class="procon-h">💭 Meinung</div><div class="procon-item">${sc.opinion}</div>`:''}
+    `;
+  }
+  return `<div class="card-box">${sc.modelAnswer||''}</div>`;
+}
+
+function renderMonoPlayer(){
+  const el=document.getElementById('screen-talk');
+  const sc=monoTopic; if(!sc) return;
+  let body='';
+  if(monoPhase==='intro'){
+    body=`
+      <div class="card-box">
+        <div class="mono-prompt">${sc.prompt}</div>
+        <div class="mono-prompt-en">${sc.promptEn||''}</div>
+        <button class="speak-btn" style="margin-top:12px" onclick="speak(monoTopic.prompt)" aria-label="Listen">🔊</button>
+      </div>
+      <div class="banner acc">⏱️ You'll get ${sc.prep||30}s to prepare, then speak non-stop — just like the real exam.</div>
+      <button class="btn full" onclick="monoStartPrep()">Bereit — Vorbereitung starten</button>
+      <div style="height:8px"></div>
+      <button class="btn ghost full" onclick="monoShowModel()">👀 Modellantwort ansehen</button>`;
+  } else if(monoPhase==='prep'){
+    body=`
+      <div class="card-box"><div class="mono-prompt">${sc.prompt}</div></div>
+      <div class="mono-timer" id="monoTimer">${monoPrepLeft}</div>
+      <div class="talk-status">Zeit zum Vorbereiten…</div>
+      <button class="btn full" onclick="monoSkipPrep()">Ich bin bereit ›</button>`;
+  } else if(monoPhase==='speak'){
+    body=`
+      <div class="card-box"><div class="mono-prompt">${sc.prompt}</div></div>
+      <div class="talk-status" id="talkStatus">${monoListening?'Ich höre zu … sprich frei':'Tippe auf das Mikrofon und sprich'}</div>
+      <button class="talk-mic${monoListening?' listening':''}" id="monoMicBtn" onclick="monoMicTap()" aria-label="Speak">${monoListening?'⏹':'🎤'}</button>
+      ${monoTranscript?`<div class="talk-msg user" style="margin:14px auto">${monoTranscript}</div>`:''}
+      <div class="talk-toolbar">
+        <button class="btn ghost sm" onclick="speak(monoTopic.prompt)">🔁 Frage wiederholen</button>
+        <button class="btn sm" style="flex:1" onclick="monoFinishNow()">✅ Fertig</button>
+      </div>`;
+  } else if(monoPhase==='review'){
+    body=`
+      ${monoTranscript?`<div class="set-label" style="margin-top:0">Deine Antwort</div><div class="talk-msg user" style="max-width:100%">${monoTranscript}</div>`:''}
+      <div class="set-label">Modellantwort</div>
+      ${renderModelAnswer(sc)}
+      <div style="height:6px"></div>
+      <button class="btn full" onclick="openMonologue(monoTopic)">🔁 Nochmal üben</button>
+      <div style="height:10px"></div>
+      <button class="btn ghost full" onclick="closeTalk()">Alle Themen</button>`;
+  }
+  el.innerHTML=`
+    <button class="game-back" onclick="closeTalk()">‹ All scenarios</button>
+    <div class="section-head"><div><h1 class="title">${sc.icon} ${sc.title}</h1><div class="sub">${sc.desc}</div></div></div>
+    ${body}
+    <div style="height:20px"></div>`;
+}
+
+function monoShowModel(){ monoPhase='review'; renderMonoPlayer(); }
+
+function monoStartPrep(){
+  monoPhase='prep'; monoPrepLeft=monoTopic.prep||30; renderMonoPlayer();
+  clearInterval(monoPrepTimerId);
+  monoPrepTimerId=setInterval(()=>{
+    monoPrepLeft--;
+    const t=document.getElementById('monoTimer'); if(t) t.textContent=monoPrepLeft;
+    if(monoPrepLeft<=0){ clearInterval(monoPrepTimerId); monoPrepTimerId=null; monoPhase='speak'; renderMonoPlayer(); }
+  },1000);
+}
+function monoSkipPrep(){
+  clearInterval(monoPrepTimerId); monoPrepTimerId=null; monoPhase='speak'; renderMonoPlayer();
+}
+
+function monoMicTap(){
+  if(monoListening){ monoStopListening(); return; }
+  monoStartListening();
+}
+async function monoStartListening(){
+  if(monoListening || !monoTopic) return;
+  const sr=speechPlugin();
+  if(!sr){ toast('🎤 Voice input needs the installed app — practice speaking out loud anyway!'); return; }
+  try{
+    const avail=await sr.available();
+    if(!avail.available){ toast('🎤 Speech recognition not available on this device'); return; }
+    let perm=await sr.checkPermissions();
+    if(perm.speechRecognition!=='granted'){
+      perm=await sr.requestPermissions();
+      if(perm.speechRecognition!=='granted'){ toast('🎤 Microphone permission is needed to talk with me'); return; }
+    }
+  }catch(e){ toast('🎤 Could not access the microphone'); return; }
+  if(!monoTopic) return;
+  monoListening=true;
+  const micBtn=document.getElementById('monoMicBtn'); if(micBtn){ micBtn.classList.add('listening'); micBtn.textContent='⏹'; }
+  const statusEl=document.getElementById('talkStatus'); if(statusEl) statusEl.textContent='Ich höre zu … sprich frei';
+  try{
+    const res=await sr.start({language:'de-DE', maxResults:1, prompt:'Sprich auf Deutsch…', popup:false, partialResults:false});
+    monoListening=false;
+    if(!monoTopic) return;
+    const said=(res && res.matches && res.matches[0]) || '';
+    if(said) monoTranscript=(monoTranscript?monoTranscript+' ':'')+said;
+    renderMonoPlayer();
+  }catch(e){
+    monoListening=false;
+    if(!monoTopic) return;
+    renderMonoPlayer();
+  }
+}
+async function monoStopListening(){
+  const sr=speechPlugin();
+  monoListening=false;
+  if(sr){ try{ await sr.stop(); }catch(e){} }
+}
+function monoFinishNow(){
+  const finish=()=>{ if(!monoTopic) return; monoPhase='review'; renderMonoPlayer(); };
+  if(monoListening){ monoStopListening().then(finish); return; }
+  finish();
 }
 
 </script>
