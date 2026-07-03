@@ -4587,7 +4587,8 @@ const DB = (function(){
       if(!o || typeof o!=='object' || !o.settings || !o.levels) throw new Error('bad');
       state=o; if(!state.currentLevel) state.currentLevel='A2'; bind(); await save();
     },
-    reset:async()=>{ const p=state.profile; state=fresh(); state.profile=p; state.firstRun=false; state.currentLevel='A2'; bind(); await save(); }
+    reset:async()=>{ const p=state.profile; state=fresh(); state.profile=p; state.firstRun=false; state.currentLevel='A2'; bind(); await save(); },
+    logout:async()=>{ state=fresh(); bind(); await save(); }
   };
 })();
 
@@ -6615,6 +6616,7 @@ let selDay=null;
 function renderHistory(){
   const s=DB.get();
   if(!calMonth){ const t=today(); calMonth=new Date(t.getFullYear(),t.getMonth(),1); }
+  if(selDay===null) selDay=todayKey();
   const el=document.getElementById('screen-history');
   const year=calMonth.getFullYear(), month=calMonth.getMonth();
   const monthName=calMonth.toLocaleDateString('en-GB',{month:'long',year:'numeric'});
@@ -7035,6 +7037,7 @@ function renderSettings(){
       <div><div style="font-weight:700;font-size:16px">${(s.profile&&s.profile.name)||'Lernende'}</div><div class="opt-desc">${s.profile&&s.profile.pin?'PIN lock on':'No PIN'}</div></div>
       <button class="btn ghost sm" onclick="editProfile()">Edit</button>
     </div>
+    <button class="btn ghost full" onclick="confirmLogout()">🚪 Log out (switch user)</button>
 
     <div class="set-label">Level</div>
     <div class="chips" style="padding-bottom:6px">
@@ -7223,6 +7226,22 @@ function confirmReset(){
     <button class="btn ghost full" onclick="closeModal()">Cancel</button>`);
 }
 async function doReset(){ await DB.reset(); closeModal(); calMonth=null; selDay=null; document.getElementById('screen-browse').dataset.init=''; toast('Progress reset'); showScreen('home'); }
+
+function confirmLogout(){
+  showModal(`<h2>Log out?</h2><div class="lead">This clears your profile and all learning progress from this device, so someone else can set up their own account. If you want to keep this data, export a backup first (Settings ▸ Backup &amp; restore) before logging out.</div>
+    <button class="btn warn full" onclick="doLogout()">Yes, log out</button>
+    <div style="height:10px"></div>
+    <button class="btn ghost full" onclick="closeModal()">Cancel</button>`);
+}
+async function doLogout(){
+  await DB.logout();
+  calMonth=null; selDay=null;
+  document.getElementById('screen-browse').dataset.init='';
+  closeModal();
+  renderHome();
+  showScreen('home');
+  showLogin();
+}
 
 /* ===== LOGIN + ONBOARDING =====
    Local profile only (on-device). Flow:
