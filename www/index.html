@@ -4522,6 +4522,7 @@ const DB = (function(){
       settings:{ reviewMode:'mixed', dailyGoal:10, autoReview:true, hideLowerLevel:false },
       levels,                       // per-level {progress, days}
       storiesDone:{},               // {storyId: bestScorePct}
+      customWords:[],               // user-added words, active via currentLevel==='custom'
       simOffset:0,
       firstRun:true
     };
@@ -4544,6 +4545,7 @@ const DB = (function(){
     if(blob.settings.autoReview===undefined) blob.settings.autoReview=true;
     if(blob.settings.hideLowerLevel===undefined) blob.settings.hideLowerLevel=false;
     if(!blob.storiesDone || typeof blob.storiesDone!=='object') blob.storiesDone={};
+    if(!Array.isArray(blob.customWords)) blob.customWords=[];
     if(typeof blob.simOffset!=='number') blob.simOffset=0;
     return blob;
   }
@@ -4668,6 +4670,32 @@ const DB = (function(){
       state=freshProfileBlob(name, pin||null);
       store.activeName=name; store.profiles[name]=state; bind(); await save();
       return {ok:true, restored:false};
+    },
+    // Custom, user-added words for the active profile. Selected as a study set
+    // via currentLevel==='custom' — activeWords() returns these just like any
+    // built-in level or theme, so Study/Review/Browse/Games all pick them up.
+    addCustomWord:async(word)=>{
+      state.customWords=state.customWords||[];
+      state.customWords.push(word);
+      await save();
+    },
+    updateCustomWord:async(id,word)=>{
+      state.customWords=state.customWords||[];
+      const idx=state.customWords.findIndex(w=>w.id===id);
+      if(idx>=0) state.customWords[idx]=Object.assign({},word,{id});
+      await save();
+    },
+    deleteCustomWord:async(id)=>{
+      state.customWords=(state.customWords||[]).filter(w=>w.id!==id);
+      const lvl=state.levels.custom;
+      if(lvl){
+        if(lvl.progress) delete lvl.progress[id];
+        Object.values(lvl.days||{}).forEach(day=>{
+          day.new=(day.new||[]).filter(x=>x!==id);
+          day.reviewed=(day.reviewed||[]).filter(r=>r.id!==id);
+        });
+      }
+      await save();
     }
   };
 })();
@@ -6352,8 +6380,11 @@ function themeByKey(k){ return THEMES.find(t=>t.key===k); }
 const THEME_WORDS = {}; THEMES.forEach(t=>{ THEME_WORDS[t.key]=t.words; });
 
 function levelWords(L){ return WORDLISTS[L] && WORDLISTS[L].length ? WORDLISTS[L] : []; }
+function isPseudoLevel(L){ return typeof L==='string' && (L.indexOf('theme:')===0 || L==='custom'); }
 function activeWords(){
   const s=DB.get();
+  // "My Words" — the user's own custom list
+  if(s.currentLevel==='custom') return s.customWords||[];
   // Theme study units are selected as "theme:KEY"
   if(typeof s.currentLevel==='string' && s.currentLevel.indexOf('theme:')===0){
     const key=s.currentLevel.slice(6);
@@ -6369,6 +6400,7 @@ function activeWords(){
 }
 function levelLabel(L){
   L = L || (DB.get().currentLevel);
+  if(L==='custom') return '📝 My Words';
   if(typeof L==='string' && L.indexOf('theme:')===0){
     const t=(typeof THEMES!=='undefined')?themeByKey(L.slice(6)):null;
     return t?(t.emoji+' '+t.name):L.slice(6);
@@ -6377,11 +6409,14 @@ function levelLabel(L){
 }
 function levelHasWords(L){ return WORDLISTS[L] && WORDLISTS[L].length>0; }
 
-function wid(w){ return w.type==='noun' ? ('N:'+w.art+':'+w.base) : (w.type+':'+w.w); }
+function wid(w){ if(w.id) return w.id; return w.type==='noun' ? ('N:'+w.art+':'+w.base) : (w.type+':'+w.w); }
 // index every word across all lists so lookups work regardless of level
 const WORD_BY_ID={};
 Object.values(WORDLISTS).forEach(list=>list.forEach(w=>{ WORD_BY_ID[wid(w)]=w; }));
 if(typeof THEMES!=='undefined'){ THEMES.forEach(t=>t.words.forEach(w=>{ if(!WORD_BY_ID[wid(w)]) WORD_BY_ID[wid(w)]=w; })); }
+// Custom words live per-profile (loaded async), so they're (re-)indexed on
+// login/logout/boot and whenever the list is edited — see reindexCustomWords().
+function reindexCustomWords(){ (DB.get().customWords||[]).forEach(w=>{ WORD_BY_ID[wid(w)]=w; }); }
 function germanOf(w){ return w.type==='noun' ? w.base : w.w; }
 function fullGerman(w){ return w.type==='noun' ? (w.art+' '+w.base) : w.w; }
 
@@ -6520,6 +6555,8 @@ function buildSession(reviewsOnly){
   else if(mode==='separate'){ queue=[...dueQueue, ...newQueue]; } // reviews first, own flow
   else if(mode==='within'){ queue=shuffle([...dueQueue, ...newQueue]).slice(); } // mixed counted together
   else { queue=shuffle([...dueQueue, ...newQueue]); } // 'mixed' default
+  // guard against ids left over from a since-deleted word (e.g. a removed custom word)
+  queue=queue.filter(item=>WORD_BY_ID[item.id]);
   session={queue, i:0, flipped:false, mode, dueCount:dueQueue.length, newCount:newQueue.length, reviewsOnly:!!reviewsOnly};
   return session;
 }
@@ -6542,6 +6579,7 @@ function showScreen(id){
   if(id==='stories') renderStories();
   if(id==='browse') renderBrowse();
   if(id==='themes') renderThemes();
+  if(id==='mywords') renderMyWords();
   if(id==='settings') renderSettings();
 }
 
@@ -6595,12 +6633,16 @@ function renderHome(){
     ${''}
     ${storiesForLevel(storyLevel()).length ? `<div class="game-tile" style="margin-top:14px" onclick="showScreen('stories')"><div class="gi q">📕</div><div><div class="gt">Geschichte des Tages</div><div class="gd">Today's ${storyLevel()} story — read, listen &amp; quiz yourself</div></div></div>` : ''}
     ${(typeof THEMES!=='undefined'&&THEMES.length) ? `<div class="game-tile" style="margin-top:14px" onclick="showScreen('themes')"><div class="gi b">🗂️</div><div><div class="gt">Themen-Wortschatz</div><div class="gd">Phrasebook — ${THEMES.reduce((n,t)=>n+t.words.length,0)} words by topic (transport, health…)</div></div></div>` : ''}
+    <div class="game-tile" style="margin-top:14px" onclick="showScreen('mywords')"><div class="gi p">📝</div><div><div class="gt">My Words</div><div class="gd">${(s.customWords||[]).length?`${s.customWords.length} word${s.customWords.length!==1?'s':''} you added — study, review & play games with them`:'Add your own vocabulary to study alongside the built-in words'}</div></div></div>
   `;
 }
 
 function addMoreWords(){
   const s=DB.get();
-  if(!activeWords().length){ toast('📚 No words for '+s.currentLevel+' yet'); return; }
+  if(!activeWords().length){
+    if(s.currentLevel==='custom'){ toast('📝 Add some words in My Words first'); showScreen('mywords'); return; }
+    toast('📚 No words for '+s.currentLevel+' yet'); return;
+  }
   const added=pullNewBatch(s.settings.dailyGoal||10);
   if(added===0){ toast('🎓 You\'ve started every '+s.currentLevel+' word!'); return; }
   toast(`➕ ${added} new words added`);
@@ -6651,7 +6693,7 @@ function renderStudy(){
           <div class="fc-center">
             ${w.type==='noun'?`<div class="fc-art">${art}</div>`:''}
             <div class="fc-word">${germanOf(w)}</div>
-            ${w.type==='noun'?`<div class="fc-pl">plural: ${w.pl}</div>`:''}
+            ${w.type==='noun'&&w.pl?`<div class="fc-pl">plural: ${w.pl}</div>`:''}
             <button class="speak-btn" onclick="speakWord(WORD_BY_ID['${item.id}'],event)" aria-label="Hear pronunciation">🔊</button>
           </div>
           <div style="text-align:center;font-size:12px;color:var(--dim)">tap to reveal</div>
@@ -6660,8 +6702,7 @@ function renderStudy(){
           <div class="fc-top"><span class="pill ${w.type}">${w.type}</span><span style="font-size:12px;color:var(--dim)">meaning</span></div>
           <div class="fc-center">
             <div class="fc-en">${w.en}</div>
-            <div class="fc-ex">„${w.ex}"</div>
-            <button class="speak-btn" onclick="speakEx('${item.id}',event)" aria-label="Hear example">🔊 example</button>
+            ${w.ex?`<div class="fc-ex">„${w.ex}"</div><button class="speak-btn" onclick="speakEx('${item.id}',event)" aria-label="Hear example">🔊 example</button>`:''}
           </div>
         </div>
       </div>
@@ -6753,7 +6794,7 @@ function renderDayDetail(){
     return `<div class="wl-item">
       <div class="wl-head"><div class="wl-de">${art}${germanOf(w)}</div><span class="pill ${w.type}">${w.type}</span></div>
       <div class="wl-en">${w.en}</div>
-      <div class="wl-ex">„${w.ex}"</div>
+      ${w.ex?`<div class="wl-ex">„${w.ex}"</div>`:''}
       <div class="tagrow">${tags}</div>
     </div>`;
   }).join('');
@@ -6817,6 +6858,117 @@ function renderThemeList(){
   }).join('') || '<div class="empty">No matches.</div>';
 }
 
+/* =========================================================
+   MY WORDS — user-added custom vocabulary. Selected as the active
+   study set via switchLevel('custom'); from then on Study, Review,
+   Browse, and Games all use activeWords()/gamePool() exactly like
+   any built-in level or theme, so no other feature needed to change.
+   ========================================================= */
+function renderMyWords(){
+  const el=document.getElementById('screen-mywords');
+  const s=DB.get();
+  const n=(s.customWords||[]).length;
+  el.innerHTML=`
+    <div class="section-head"><div><h1 class="title">📝 My Words</h1><div class="sub">${n} word${n!==1?'s':''} you've added</div></div></div>
+    <div class="banner acc">📝 Select "My Words" under Settings ▸ Level to study, review, and play games with just your own list.</div>
+    <button class="btn full" onclick="openAddWord()">➕ Add a word</button>
+    ${n?`<div style="height:8px"></div><button class="btn ghost full" onclick="switchLevel('custom'); showScreen('study')">▶️ Study my words</button>`:''}
+    <div style="height:14px"></div>
+    <input class="search-box" id="cwSearch" placeholder="🔍 Search your words…" oninput="renderMyWordsList()">
+    <div id="cwList"></div>
+    <div style="height:20px"></div>`;
+  renderMyWordsList();
+}
+function renderMyWordsList(){
+  const box=document.getElementById('cwList'); if(!box) return;
+  const s=DB.get();
+  const q=(document.getElementById('cwSearch')?document.getElementById('cwSearch').value:'').toLowerCase().trim();
+  const all=s.customWords||[];
+  let list=all.filter(w=>!q || germanOf(w).toLowerCase().includes(q) || w.en.toLowerCase().includes(q));
+  list=[...list].sort((a,b)=>germanOf(a).localeCompare(germanOf(b),'de'));
+  box.innerHTML = list.length ? list.map(w=>{
+    const art=w.type==='noun'?`<span class="art-tag art-${w.art}">${w.art}</span> `:'';
+    const idJs=w.id.replace(/'/g,"\\'");
+    return `<div class="wl-item" onclick="openEditWord('${idJs}')">
+      <div class="wl-head"><div class="wl-de">${art}${germanOf(w)}</div>
+        <div style="display:flex;align-items:center;gap:8px"><button class="speak-btn speak-sm" onclick="speakWord(WORD_BY_ID['${idJs}'],event)">🔊</button>
+        <span class="pos">${w.type}</span></div></div>
+      <div class="wl-en">${w.en}</div>
+      ${w.ex?`<div class="wl-ex">${w.ex}</div>`:''}
+    </div>`;
+  }).join('') : `<div class="empty">${all.length?'No matches.':'No words yet — tap "Add a word" above to start your own list.'}</div>`;
+}
+let cwEditId=null;
+function openAddWord(){
+  cwEditId=null;
+  showModal(`<h2>Add a word</h2>
+    <input class="search-box" id="cwWord" placeholder="German word (e.g. Tisch, or laufen)" maxlength="60">
+    <select class="search-box" id="cwArt">
+      <option value="">No article (verb, adjective, other)</option>
+      <option value="der">der (masculine noun)</option>
+      <option value="die">die (feminine noun)</option>
+      <option value="das">das (neuter noun)</option>
+    </select>
+    <input class="search-box" id="cwEn" placeholder="English meaning" maxlength="80">
+    <input class="search-box" id="cwEx" placeholder="Example sentence (optional)" maxlength="140">
+    <button class="btn full" onclick="saveCustomWord()">Save</button>
+    <div style="height:10px"></div>
+    <button class="btn ghost full" onclick="closeModal()">Cancel</button>`);
+}
+function openEditWord(id){
+  const w=WORD_BY_ID[id]; if(!w) return;
+  cwEditId=id;
+  const wordText=(w.type==='noun'?w.base:w.w)||'';
+  showModal(`<h2>Edit word</h2>
+    <input class="search-box" id="cwWord" placeholder="German word" maxlength="60" value="${wordText.replace(/"/g,'&quot;')}">
+    <select class="search-box" id="cwArt">
+      <option value="" ${w.type!=='noun'?'selected':''}>No article (verb, adjective, other)</option>
+      <option value="der" ${w.art==='der'?'selected':''}>der (masculine noun)</option>
+      <option value="die" ${w.art==='die'?'selected':''}>die (feminine noun)</option>
+      <option value="das" ${w.art==='das'?'selected':''}>das (neuter noun)</option>
+    </select>
+    <input class="search-box" id="cwEn" placeholder="English meaning" maxlength="80" value="${(w.en||'').replace(/"/g,'&quot;')}">
+    <input class="search-box" id="cwEx" placeholder="Example sentence (optional)" maxlength="140" value="${(w.ex||'').replace(/"/g,'&quot;')}">
+    <button class="btn full" onclick="saveCustomWord()">Save</button>
+    <div style="height:10px"></div>
+    <button class="btn warn full" onclick="deleteCustomWordConfirm('${id.replace(/'/g,"\\'")}')">Delete</button>
+    <div style="height:10px"></div>
+    <button class="btn ghost full" onclick="closeModal()">Cancel</button>`);
+}
+async function saveCustomWord(){
+  const word=(document.getElementById('cwWord').value||'').trim();
+  const art=document.getElementById('cwArt').value;
+  const en=(document.getElementById('cwEn').value||'').trim();
+  const ex=(document.getElementById('cwEx').value||'').trim();
+  if(!word || !en){ toast('Please fill in the German word and English meaning'); return; }
+  let obj = art ? {art, base:word, pl:'', type:'noun', en, ex, custom:true}
+                : {w:word, type:'other', en, ex, custom:true};
+  if(cwEditId){
+    obj.id=cwEditId;
+    await DB.updateCustomWord(cwEditId, obj);
+  } else {
+    obj.id='custom_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);
+    await DB.addCustomWord(obj);
+  }
+  reindexCustomWords();
+  closeModal();
+  renderMyWordsList();
+  toast('✅ Saved');
+}
+function deleteCustomWordConfirm(id){
+  showModal(`<h2>Delete this word?</h2><div class="lead">This removes it from your list and any study progress for it.</div>
+    <button class="btn warn full" onclick="doDeleteCustomWord('${id.replace(/'/g,"\\'")}')">Delete</button>
+    <div style="height:10px"></div>
+    <button class="btn ghost full" onclick="openEditWord('${id.replace(/'/g,"\\'")}')">Cancel</button>`);
+}
+async function doDeleteCustomWord(id){
+  await DB.deleteCustomWord(id);
+  delete WORD_BY_ID[id];
+  closeModal();
+  renderMyWordsList();
+  toast('🗑️ Deleted');
+}
+
 function renderBrowse(){
   const el=document.getElementById('screen-browse');
   if(!el.dataset.init){
@@ -6856,8 +7008,8 @@ function renderWordList(){
     return `<div class="wl-item">
       <div class="wl-head"><div class="wl-de">${art}${germanOf(w)} ${badge}${lvlBadge}</div>
         <div style="display:flex;align-items:center;gap:8px"><button class="speak-btn speak-sm" onclick="speakWord(WORD_BY_ID['${id}'],event)" aria-label="Hear">🔊</button><span class="pill ${w.type}">${w.type}</span></div></div>
-      <div class="wl-en">${w.en}${w.type==='noun'?' · pl. '+w.pl:''}</div>
-      <div class="wl-ex">„${w.ex}"</div>
+      <div class="wl-en">${w.en}${w.type==='noun'&&w.pl?' · pl. '+w.pl:''}</div>
+      ${w.ex?`<div class="wl-ex">„${w.ex}"</div>`:''}
     </div>`;
   }).join('')||'<div class="empty">No words found.</div>';
 }
@@ -7123,13 +7275,20 @@ function renderSettings(){
     <div class="chips" style="padding-bottom:6px">
       ${DB.LEVELS.map(L=>`<div class="chip ${s.currentLevel===L?'active':''}" onclick="switchLevel('${L}')">${L}${levelHasWords(L)?'':' •'}</div>`).join('')}
     </div>
-    <div class="sub" style="margin-bottom:6px">Each level keeps its own progress. ${levelHasWords(s.currentLevel)?'':'<b>'+s.currentLevel+' words are coming soon.</b>'} Levels marked • aren't loaded yet.</div>
+    <div class="sub" style="margin-bottom:6px">Each level keeps its own progress. ${!isPseudoLevel(s.currentLevel)&&!levelHasWords(s.currentLevel)?'<b>'+s.currentLevel+' words are coming soon.</b>':''} Levels marked • aren't loaded yet.</div>
 
     <div class="set-label">Or study a theme</div>
     <div class="chips" style="padding-bottom:6px">
       ${(typeof THEMES!=='undefined'?THEMES:[]).map(t=>`<div class="chip ${s.currentLevel==='theme:'+t.key?'active':''}" onclick="switchLevel('theme:${t.key.replace(/'/g,"\\'")}')">${t.emoji} ${t.name}</div>`).join('')}
     </div>
     <div class="sub" style="margin-bottom:6px">Themes are topic-based word sets (from the phrasebook). Selecting one makes it your active study set, with its own progress — your A1/A2/B1 progress is untouched.</div>
+
+    <div class="set-label">Or study your own words</div>
+    <div class="chips" style="padding-bottom:6px">
+      <div class="chip ${s.currentLevel==='custom'?'active':''}" onclick="switchLevel('custom')">📝 My Words${(s.customWords||[]).length?' ('+s.customWords.length+')':''}</div>
+      <div class="chip" onclick="showScreen('mywords')">✏️ Manage</div>
+    </div>
+    <div class="sub" style="margin-bottom:6px">Add your own German words with English meanings. Selecting it makes it your active study set — Study, Review, Browse, and Games all switch to just your words, with their own separate progress.</div>
 
     <div class="set-label">Vocabulary filter</div>
     <div class="card-box" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
@@ -7195,7 +7354,11 @@ function storageBreakdown(){
   const learned=Object.values(s.progress).filter(p=>p.lastSeen!==null).length;
   const scheduled=Object.values(s.progress).filter(p=>!p.graduated&&p.due!==null).length;
   const dayCount=Object.keys(s.days).filter(k=>{const d=s.days[k];return d.new.length||d.reviewed.length;}).length;
-  return `${learned} words in progress · ${scheduled} scheduled for review · ${dayCount} day${dayCount!==1?'s':''} of history.<br>The ${activeWords().length}-word dictionary is built into the app and doesn't count toward this.`;
+  const n=activeWords().length;
+  const dictNote = s.currentLevel==='custom'
+    ? `Your ${n} custom word${n!==1?'s':''} ${n!==1?'are':'is'} stored with your profile and included in this.`
+    : `The ${n}-word dictionary is built into the app and doesn't count toward this.`;
+  return `${learned} words in progress · ${scheduled} scheduled for review · ${dayCount} day${dayCount!==1?'s':''} of history.<br>${dictNote}`;
 }
 
 /* ===== export / import ===== */
@@ -7273,11 +7436,10 @@ function switchLevel(L){
   const b=document.getElementById('screen-browse'); if(b) b.dataset.init='';
   wsBuilt=false;
   renderSettings();
-  if(!levelHasWords(L)) toast('📚 '+L+' words coming soon');
-  else { toast('Switched to '+L); }
-  // seed a first batch if this level has words but none started yet
-  if(levelHasWords(L)){
-    const dk=todayKey(); const day=s.days[dk];
+  if(!isPseudoLevel(L) && !levelHasWords(L)) toast('📚 '+L+' words coming soon');
+  else toast('Switched to '+levelLabel(L));
+  // seed a first batch if this level/theme/custom set has words but none started yet
+  if(isPseudoLevel(L) || levelHasWords(L)){
     const anyProgress=Object.keys(s.progress).length>0;
     if(!anyProgress) pullNewBatch(s.settings.dailyGoal||10);
   }
@@ -7375,7 +7537,7 @@ async function createProfile(){
   if(res.restored){ toast('👋 Welcome back, '+name+'!'); enterApp(); }
   else { onboardLevel(); }
 }
-function enterApp(){ closeModal(); renderHome(); showScreen('home'); }
+function enterApp(){ reindexCustomWords(); closeModal(); renderHome(); showScreen('home'); }
 
 /* step 2: level */
 function onboardLevel(){
@@ -7481,6 +7643,7 @@ function closeModal(){ document.getElementById('overlay').classList.remove('show
 /* ===== BOOT ===== */
 (async function boot(){
   await DB.load();
+  reindexCustomWords();
   const s=DB.get();
   document.getElementById('app').innerHTML=`
     <section id="screen-home" class="screen active"></section>
@@ -7491,6 +7654,7 @@ function closeModal(){ document.getElementById('overlay').classList.remove('show
     <section id="screen-stories" class="screen"></section>
     <section id="screen-browse" class="screen"></section>
     <section id="screen-themes" class="screen"></section>
+    <section id="screen-mywords" class="screen"></section>
     <section id="screen-settings" class="screen"></section>`;
   document.getElementById('nav').style.display='flex';
   renderHome();
