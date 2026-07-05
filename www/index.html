@@ -4503,15 +4503,21 @@ const WORDS_B1 = [
    Everything else in the app is storage-agnostic.
    ========================================================= */
 const DB = (function(){
+  // Storage shape (v2): { profiles: { "<name>": <profileBlob> }, activeName: "<name>"|null }
+  // Each profileBlob is exactly the shape the rest of the app already expects
+  // from DB.get() (profile, currentLevel, settings, levels, storiesDone, simOffset,
+  // firstRun, plus the progress/days refs bind() adds) — unchanged from before
+  // multi-profile support, so no other call site needs to change.
   const KEY='wortschatz_v1';
-  let state=null;
+  let store=null;   // { profiles, activeName }
+  let state=null;   // = store.profiles[store.activeName], or a transient logged-out blob
   let saveTimer=null, saving=Promise.resolve();
   const LEVELS=['A1','A2','B1','B2','C1'];
   function freshLevel(){ return {progress:{}, days:{}}; }
-  const fresh=()=>{
+  function freshProfileBlob(name,pin){
     const levels={}; LEVELS.forEach(L=>levels[L]=freshLevel());
     return {
-      profile:null,                 // {name, pin} — set at login/first run
+      profile: name ? {name, pin: pin||null} : null,   // null while logged out
       currentLevel:null,            // chosen on first run
       settings:{ reviewMode:'mixed', dailyGoal:10, autoReview:true, hideLowerLevel:false },
       levels,                       // per-level {progress, days}
@@ -4519,7 +4525,8 @@ const DB = (function(){
       simOffset:0,
       firstRun:true
     };
-  };
+  }
+  function freshStore(){ return {profiles:{}, activeName:null}; }
   // expose current level's progress/days as top-level refs so the rest of the
   // app can keep using state.progress / state.days unchanged.
   function bind(){
@@ -4530,6 +4537,15 @@ const DB = (function(){
     lvl.progress=lvl.progress||{}; lvl.days=lvl.days||{};
     state.progress=lvl.progress;
     state.days=lvl.days;
+  }
+  function normalize(blob){
+    if(!blob.settings) blob.settings={reviewMode:'mixed',dailyGoal:10,autoReview:true,hideLowerLevel:false};
+    if(!blob.levels){ const lv={}; LEVELS.forEach(L=>lv[L]=freshLevel()); blob.levels=lv; }
+    if(blob.settings.autoReview===undefined) blob.settings.autoReview=true;
+    if(blob.settings.hideLowerLevel===undefined) blob.settings.hideLowerLevel=false;
+    if(!blob.storiesDone || typeof blob.storiesDone!=='object') blob.storiesDone={};
+    if(typeof blob.simOffset!=='number') blob.simOffset=0;
+    return blob;
   }
   // Native: Capacitor Preferences; browser dev: localStorage. Attempted on
   // read so data written by either survives. This is the ONLY place persistence
@@ -4546,32 +4562,46 @@ const DB = (function(){
     try{ localStorage.setItem(KEY, str); }catch(e){}
     return true;
   }
-  function migrate(o){
-    // migrate old flat {progress,days} shape into levels.A2
+  function migrateOldFlatBlob(o){
+    // migrate old flat {progress,days} shape (pre-levels) into levels.A2
     if(o && o.progress && !o.levels){
       const levels={}; LEVELS.forEach(L=>levels[L]=freshLevel());
       levels['A2']={progress:o.progress||{}, days:o.days||{}};
       return { profile:o.profile||null, currentLevel:o.currentLevel||'A2',
                settings:Object.assign({reviewMode:'mixed',dailyGoal:10,autoReview:true,hideLowerLevel:false}, o.settings||{}),
-               levels, simOffset:o.simOffset||0, firstRun:o.firstRun!==false?false:false };
+               levels, storiesDone:o.storiesDone||{}, simOffset:o.simOffset||0, firstRun:false };
     }
     return o;
   }
+  function migrateToStore(o){
+    if(o && o.profiles && typeof o.profiles==='object') return o; // already v2
+    // pre-multi-profile shape: a single profileBlob (possibly pre-levels too)
+    const blob=normalize(migrateOldFlatBlob(o)||freshProfileBlob(null));
+    const name=(blob.profile && blob.profile.name) || null;
+    const s=freshStore();
+    if(name){ s.profiles[name]=blob; s.activeName=name; }
+    return s;
+  }
   async function load(){
     const val=await rawGet();
-    if(val){ try{ state=migrate(JSON.parse(val)); }catch(e){ state=fresh(); } }
-    else state=fresh();
-    if(!state || typeof state!=='object' || !state.settings){ state=fresh(); }
-    if(!state.levels){ const lv={}; LEVELS.forEach(L=>lv[L]=freshLevel()); state.levels=lv; }
-    if(state.settings.autoReview===undefined) state.settings.autoReview=true;
-    if(state.settings.hideLowerLevel===undefined) state.settings.hideLowerLevel=false;
-    if(!state.storiesDone || typeof state.storiesDone!=='object') state.storiesDone={};
-    if(typeof state.simOffset!=='number') state.simOffset=0;
+    if(val){ try{ store=migrateToStore(JSON.parse(val)); }catch(e){ store=freshStore(); } }
+    else store=freshStore();
+    if(!store || typeof store!=='object' || !store.profiles) store=freshStore();
+    if(store.activeName && store.profiles[store.activeName]){
+      state=normalize(store.profiles[store.activeName]);
+      store.profiles[store.activeName]=state;
+    } else {
+      store.activeName=null;
+      state=freshProfileBlob(null); // logged-out placeholder, not persisted until a profile is chosen
+    }
     bind();
     return state;
   }
   function save(){
-    saving=saving.then(()=>rawSet(JSON.stringify(state))).catch(()=>{});
+    saving=saving.then(()=>{
+      if(store.activeName && state){ store.profiles[store.activeName]=state; }
+      return rawSet(JSON.stringify(store));
+    }).catch(()=>{});
     return saving;
   }
   return {
@@ -4583,12 +4613,62 @@ const DB = (function(){
     serialize:()=>JSON.stringify(state),
     sizeBytes:()=>{ try{ return new Blob([JSON.stringify(state)]).size; }catch(e){ return JSON.stringify(state).length; } },
     importData:async(obj)=>{
-      const o=migrate(obj);
+      const o=normalize(migrateOldFlatBlob(obj));
       if(!o || typeof o!=='object' || !o.settings || !o.levels) throw new Error('bad');
-      state=o; if(!state.currentLevel) state.currentLevel='A2'; bind(); await save();
+      o.profile=state.profile; // importing a backup replaces progress, not who's logged in
+      state=o; if(!state.currentLevel) state.currentLevel='A2'; bind();
+      if(store.activeName) store.profiles[store.activeName]=state;
+      await save();
     },
-    reset:async()=>{ const p=state.profile; state=fresh(); state.profile=p; state.firstRun=false; state.currentLevel='A2'; bind(); await save(); },
-    logout:async()=>{ state=fresh(); bind(); await save(); }
+    reset:async()=>{
+      const p=state.profile;
+      state=freshProfileBlob(p&&p.name, p&&p.pin);
+      state.firstRun=false;
+      bind();
+      if(store.activeName) store.profiles[store.activeName]=state;
+      await save();
+    },
+    // Sets the active profile's name/pin, moving its stored data if the name changed
+    // (so a later loginAs() by the new name finds it again). Blank pin keeps existing.
+    setProfile:(name,pin)=>{
+      const oldKey=store.activeName;
+      state.profile=state.profile||{};
+      state.profile.name=name;
+      if(pin) state.profile.pin=pin;
+      if(oldKey!==name){
+        if(oldKey) delete store.profiles[oldKey];
+        store.activeName=name;
+      }
+      store.profiles[name]=state;
+    },
+    // Logs out WITHOUT deleting data: the active profile's blob stays in
+    // store.profiles under its name, just deactivated. loginAs() with the same
+    // name restores it; a different name starts a fresh profile.
+    logout:async()=>{
+      if(store.activeName && state){ store.profiles[store.activeName]=state; }
+      store.activeName=null;
+      state=freshProfileBlob(null);
+      bind();
+      await save();
+    },
+    // Looks up a stored profile by name (case-insensitive). Returns {ok:false,reason:'pin'}
+    // if it's PIN-protected and pin doesn't match, otherwise logs in (restoring existing
+    // data) or creates a fresh profile if the name is new.
+    loginAs:async(name,pin)=>{
+      name=(name||'').trim()||'Lernende';
+      const existingKey=Object.keys(store.profiles).find(n=>n.toLowerCase()===name.toLowerCase());
+      if(existingKey){
+        const blob=normalize(store.profiles[existingKey]);
+        if(blob.profile && blob.profile.pin && String(blob.profile.pin)!==String(pin||'')){
+          return {ok:false, reason:'pin'};
+        }
+        store.activeName=existingKey; state=blob; bind(); await save();
+        return {ok:true, restored:true};
+      }
+      state=freshProfileBlob(name, pin||null);
+      store.activeName=name; store.profiles[name]=state; bind(); await save();
+      return {ok:true, restored:false};
+    }
   };
 })();
 
@@ -7212,10 +7292,9 @@ function editProfile(){
     <div style="height:10px"></div><button class="btn ghost full" onclick="closeModal()">Cancel</button>`);
 }
 async function saveProfile(){
-  const s=DB.get(); const name=(document.getElementById('epName').value||'').trim()||'Lernende';
+  const name=(document.getElementById('epName').value||'').trim()||'Lernende';
   const pin=(document.getElementById('epPin').value||'').trim();
-  s.profile=s.profile||{}; s.profile.name=name;
-  if(pin) s.profile.pin=pin; // blank keeps existing
+  DB.setProfile(name, pin||null); // blank pin keeps existing
   await DB.save(); closeModal(); renderSettings(); renderHome(); toast('Profile saved');
 }
 async function removePin(){ const s=DB.get(); if(s.profile) s.profile.pin=null; await DB.save(); closeModal(); renderSettings(); toast('PIN removed'); }
@@ -7228,7 +7307,7 @@ function confirmReset(){
 async function doReset(){ await DB.reset(); closeModal(); calMonth=null; selDay=null; document.getElementById('screen-browse').dataset.init=''; toast('Progress reset'); showScreen('home'); }
 
 function confirmLogout(){
-  showModal(`<h2>Log out?</h2><div class="lead">This clears your profile and all learning progress from this device, so someone else can set up their own account. If you want to keep this data, export a backup first (Settings ▸ Backup &amp; restore) before logging out.</div>
+  showModal(`<h2>Log out?</h2><div class="lead">Your progress stays saved on this device. Log back in with the same name (and PIN, if you set one) to pick up right where you left off — or a different name to start a separate, fresh account.</div>
     <button class="btn warn full" onclick="doLogout()">Yes, log out</button>
     <div style="height:10px"></div>
     <button class="btn ghost full" onclick="closeModal()">Cancel</button>`);
@@ -7274,7 +7353,7 @@ function showLogin(){
       <input class="search-box" id="loginName" placeholder="Your name" maxlength="24">
       <input class="search-box" id="loginPin2" inputmode="numeric" maxlength="8" type="password" placeholder="Optional PIN (numbers)" style="letter-spacing:2px">
       <button class="btn full" onclick="createProfile()">Get started</button>
-      <div class="sub" style="text-align:center;margin-top:10px;line-height:1.5">Your name and progress stay private on this device.<br>A PIN is optional.</div>
+      <div class="sub" style="text-align:center;margin-top:10px;line-height:1.5">Your name and progress stay private on this device.<br>A PIN is optional. Returning? Type your existing name (and PIN, if set) to pick up where you left off.</div>
     `}`;
 }
 function tryLogin(){
@@ -7291,10 +7370,10 @@ async function clearPin(){ const s=DB.get(); s.profile.pin=null; await DB.save()
 async function createProfile(){
   const name=(document.getElementById('loginName').value||'').trim()||'Lernende';
   const pin=(document.getElementById('loginPin2').value||'').trim();
-  const s=DB.get();
-  s.profile={name, pin: pin?pin:null};
-  await DB.save();
-  onboardLevel();
+  const res=await DB.loginAs(name, pin);
+  if(!res.ok){ toast('🔒 That name is PIN-protected — enter the PIN above'); return; }
+  if(res.restored){ toast('👋 Welcome back, '+name+'!'); enterApp(); }
+  else { onboardLevel(); }
 }
 function enterApp(){ closeModal(); renderHome(); showScreen('home'); }
 
