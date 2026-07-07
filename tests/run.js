@@ -273,6 +273,20 @@ test('RB-09','Config','local-notifications plugin is declared', ()=> !!pkg.depen
 test('RB-10','Reminders','Settings screen exposes the reminder toggle + auto-backup restore', ()=> /setReminderEnabled/.test(HTML) && /restoreAutoBackup/.test(HTML) && /Automatic backup/.test(HTML));
 
 /* =========================================================
+   19. CONTENT-QUALITY GUARDRAILS (Batch 4) — invariants over the real data
+   ========================================================= */
+const _ARTS_OK=new Set(['der','die','das']);
+const _LTYPES=new Set(['noun','verb','adj','other']);
+const _TTYPES=new Set(['noun','verb','adj','other','phrase']);
+function _levelEntries(){ const o=[]; for(const [l,arr] of Object.entries(A.WORDLISTS||{})) for(const w of arr) o.push([l,w]); return o; }
+test('CQ-08','Content Quality','Every noun base is capitalized', ()=>{ const bad=_levelEntries().filter(([l,w])=>w.type==='noun'&&w.base&&/^[a-zäöüß]/.test(w.base)); assert(bad.length===0, bad.slice(0,3).map(x=>x[1].base).join(',')); return true; });
+test('CQ-09','Content Quality','Every noun article is der/die/das', ()=>{ const bad=_levelEntries().filter(([l,w])=>w.type==='noun'&&!_ARTS_OK.has(w.art)); assert(bad.length===0, bad.length+' bad-article nouns'); return true; });
+test('CQ-10','Content Quality','Every word type is valid (levels + phrasebook)', ()=>{ const badL=_levelEntries().filter(([l,w])=>!_LTYPES.has(w.type)); let badT=0; for(const t of (A.THEMES||[])) for(const w of (t.words||[])) if(!_TTYPES.has(w.type===undefined?'phrase':w.type)) badT++; assert(badL.length+badT===0, `L${badL.length}/T${badT} invalid`); return true; });
+test('CQ-11','Content Quality','No generic "…ist hier." filler remains', ()=>{ const bad=_levelEntries().filter(([l,w])=>w.ex&&/^(Der|Die|Das)\s+.+\s+ist hier\.$/.test(String(w.ex).trim())); assert(bad.length===0, bad.length+' fillers'); return true; });
+test('CQ-12','Content Quality','No word field has stray leading/trailing whitespace', ()=>{ const bad=_levelEntries().filter(([l,w])=>{const g=A.germanOf(w)||'';return (w.en&&w.en!==w.en.trim())||(w.ex&&w.ex!==w.ex.trim())||g!==g.trim();}); assert(bad.length===0, bad.length+' untrimmed'); return true; });
+test('CQ-13','Content Quality','No exact duplicate (word+article+meaning) within a level', ()=>{ let dups=[]; for(const [l,arr] of Object.entries(A.WORDLISTS||{})){ const seen=new Set(); for(const w of arr){ const k=[w.type,(A.germanOf(w)||'').toLowerCase(),w.art||'',(w.en||'').toLowerCase().trim()].join('|'); if(seen.has(k)) dups.push(l+':'+A.germanOf(w)); else seen.add(k);} } assert(dups.length===0, dups.slice(0,3).join(',')); return true; });
+
+/* =========================================================
    run async tests, then report
    ========================================================= */
 (async ()=>{
