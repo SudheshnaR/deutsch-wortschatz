@@ -295,6 +295,11 @@ test('LT-03','Theme','Quiz options + flashcard faces use themeable surface token
 atest('CW-04','Custom Words','Added words persist across a reload (saved to storage)', async ()=>{ await DB.loginAs('cwpersist',null); await DB.addCustomWord({w:'Testwort',en:'test word',type:'other',ex:'Das ist ein Testwort.'}); await DB.load(); assert((DB.get().customWords||[]).some(x=>x.w==='Testwort'),'custom word lost after reload'); });
 
 /* =========================================================
+   21. DEV BAR REMOVED (release polish)
+   ========================================================= */
+test('UI-01','Config','The dev "Test date" simulation bar is fully removed', ()=> !/sim-bar/.test(HTML) && !/Test date/.test(HTML) && !/function simBar/.test(HTML));
+
+/* =========================================================
    run async tests, then report
    ========================================================= */
 (async ()=>{
