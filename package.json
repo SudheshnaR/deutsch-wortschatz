@@ -12,7 +12,8 @@
     "add:android": "npx cap add android",
     "icons": "npx @capacitor/assets generate --assetPath assets",
     "test": "node tests/run.js",
-    "test:report": "node tests/run.js && node tests/gen_report.js"
+    "test:report": "node tests/run.js && node tests/gen_report.js",
+    "audit": "node tests/audit.js"
   },
   "dependencies": {
     "@capacitor-community/speech-recognition": "^6.0.1",
