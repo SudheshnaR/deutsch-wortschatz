@@ -22,7 +22,7 @@ const NAMES = ['WORDS','WORDS_A1','WORDS_B1','WORDLISTS','THEMES','THEME_WORDS',
   'levelHasWords','wid','germanOf','fullGerman','today','todayNum','todayKey','dueReviewIds',
   'isIntroduced','scheduledReviews','rateWord','pullNewBatch','ensureProg','streakCount',
   'totalLearned','buildSession','storiesForLevel','storyLevel','rotationFor','reindexCustomWords',
-  'shuffle','themeByKey'];
+  'shuffle','themeByKey','activityData','activityHeatmap','applyTheme','setTheme'];
 scriptSrc += '\n;globalThis.__APP__={};' + NAMES.map(n =>
   `try{globalThis.__APP__[${JSON.stringify(n)}]=${n};}catch(e){}`).join('');
 
@@ -216,6 +216,33 @@ test('CF-04','Config','TTS + speech-recognition plugins are declared', ()=> !!pk
 test('CF-05','Config','Preferences + Filesystem + Share plugins are declared', ()=> !!pkg.dependencies['@capacitor/preferences'] && !!pkg.dependencies['@capacitor/filesystem'] && !!pkg.dependencies['@capacitor/share']);
 test('CF-06','Build','App bundles into a single self-contained index.html', ()=> (HTML.match(/<script\b(?![^>]*\bsrc=)/gi)||[]).length>=1 && !/<script[^>]*\bsrc=/.test(HTML));
 test('CF-07','Build','iOS Info.plist has microphone + speech usage strings', ()=>{ const p=fs.readFileSync(path.join(__dirname,'..','ios','App','App','Info.plist'),'utf8'); return /NSMicrophoneUsageDescription/.test(p) && /NSSpeechRecognitionUsageDescription/.test(p); });
+
+/* =========================================================
+   13. THEME (Batch 1)
+   ========================================================= */
+atest('TM-01','Theme','New profile defaults to the "system" theme', async ()=>{ await DB.loginAs('tm1',null); assert(DB.get().settings.theme==='system','got '+DB.get().settings.theme); });
+atest('TM-02','Theme','setTheme() changes and persists the theme', async ()=>{ await DB.loginAs('tm2',null); A.setTheme('dark'); assert(DB.get().settings.theme==='dark','not set'); A.setTheme('light'); assert(DB.get().settings.theme==='light'); });
+atest('TM-03','Theme','A legacy backup without a theme normalizes to "system"', async ()=>{ await DB.loginAs('tm3',null); await DB.importData({currentLevel:'A1', settings:{reviewMode:'mixed',dailyGoal:10,autoReview:true,hideLowerLevel:false}, levels:{A1:{progress:{},days:{}}}, storiesDone:{}, simOffset:0}); assert(DB.get().settings.theme==='system','theme='+DB.get().settings.theme); });
+test('TM-04','Theme','CSS defines a light theme + system/reduced-motion media queries', ()=> /\[data-theme="light"\]/.test(HTML) && /prefers-color-scheme/.test(HTML) && /prefers-reduced-motion/.test(HTML));
+
+/* =========================================================
+   14. PROGRESS HEATMAP (Batch 1)
+   ========================================================= */
+atest('HM-01','Progress','activityData(12) returns 84 day-cells', async ()=>{ await DB.loginAs('hm1',null); DB.setLevel('A1'); const a=A.activityData(12); assert(a.cells.length===84,'cells='+a.cells.length); });
+atest('HM-02','Progress','Per-day counts sum new + reviewed from the day log', async ()=>{ await DB.loginAs('hm2',null); DB.setLevel('A1'); const dk=A.todayKey(); DB.get().days[dk]={new:['a','b'],reviewed:[{id:'c',result:'got'}]}; const a=A.activityData(12); const last=a.cells[a.cells.length-1]; assert(last.count===3,'today count '+last.count); assert(a.sum>=3 && a.active>=1,'sum/active'); });
+atest('HM-03','Progress','Activity intensity buckets map counts to levels 0–4', async ()=>{ await DB.loginAs('hm3',null); DB.setLevel('A1'); const dk=A.todayKey(); DB.get().days[dk]={new:[], reviewed:Array.from({length:12},(_,i)=>({id:'x'+i}))}; const a=A.activityData(12); assert(a.cells[a.cells.length-1].lvl===4,'lvl='+a.cells[a.cells.length-1].lvl); });
+
+/* =========================================================
+   15. ACCESSIBILITY (Batch 1)
+   ========================================================= */
+test('AX-01','Accessibility','Viewport allows pinch-zoom (no user-scalable=no / maximum-scale)', ()=> !/user-scalable\s*=\s*no/.test(HTML) && !/maximum-scale/.test(HTML));
+test('AX-02','Accessibility','Emoji-only 🔊 buttons carry an aria-label', ()=>{ const bad=(HTML.match(/speak-sm"\s+onclick="[^"]*">🔊/g)||[]).length; return bad===0 || `${bad} unlabeled`; });
+test('AX-03','Accessibility','Focus-visible outline styling is present', ()=> /:focus-visible/.test(HTML));
+
+/* =========================================================
+   16. CI (Batch 1)
+   ========================================================= */
+test('CI-01','Config','GitHub Actions test workflow exists and runs npm test', ()=>{ const p=path.join(__dirname,'..','.github','workflows','test.yml'); if(!fs.existsSync(p)) return 'missing workflow'; return /npm test/.test(fs.readFileSync(p,'utf8')); });
 
 /* =========================================================
    run async tests, then report
