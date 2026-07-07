@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Wortschatz">
@@ -269,6 +269,30 @@ nav button.active{color:var(--accent)}
   color:inherit;cursor:pointer;white-space:nowrap}
 .theme-stickybar .back-btn:active{transform:scale(.96)}
 .theme-stickytitle{font-weight:700;font-size:17px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ===== Light / system theme (Batch 1) ===== */
+:root[data-theme="light"]{ --bg:#f4f1ea; --card:#ffffff; --txt:#1b2030; --dim:#5b6472; --line:#e3e7ee; }
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]):not([data-theme="light"]){ --bg:#f4f1ea; --card:#ffffff; --txt:#1b2030; --dim:#5b6472; --line:#e3e7ee; }
+}
+/* ===== Accessibility ===== */
+:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; border-radius:4px; }
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{ animation-duration:.001ms!important; transition-duration:.001ms!important; scroll-behavior:auto!important; }
+  .fc{ transition:none!important; }
+}
+/* ===== Progress heatmap ===== */
+.heat-wrap{ background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; margin-top:14px; cursor:pointer; }
+.heat-head{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px; gap:8px; }
+.heat-head .t{ font-weight:700; } .heat-head .s{ color:var(--dim); font-size:12px; text-align:right; }
+.heat-grid{ display:grid; grid-auto-flow:column; grid-template-rows:repeat(7,13px); grid-auto-columns:13px; gap:3px; overflow-x:auto; }
+.heat-cell{ width:13px; height:13px; border-radius:3px; background:var(--line); }
+.heat-cell.l1{ background:rgba(90,209,168,.30); }
+.heat-cell.l2{ background:rgba(90,209,168,.55); }
+.heat-cell.l3{ background:rgba(90,209,168,.80); }
+.heat-cell.l4{ background:rgba(90,209,168,1); }
+.heat-legend{ display:flex; align-items:center; gap:4px; justify-content:flex-end; margin-top:8px; color:var(--dim); font-size:11px; }
+.heat-legend .heat-cell{ width:11px; height:11px; }
 </style>
 </head>
 <body>
@@ -4519,7 +4543,7 @@ const DB = (function(){
     return {
       profile: name ? {name, pin: pin||null} : null,   // null while logged out
       currentLevel:null,            // chosen on first run
-      settings:{ reviewMode:'mixed', dailyGoal:10, autoReview:true, hideLowerLevel:false },
+      settings:{ reviewMode:'mixed', dailyGoal:10, autoReview:true, hideLowerLevel:false, theme:'system' },
       levels,                       // per-level {progress, days}
       storiesDone:{},               // {storyId: bestScorePct}
       customWords:[],               // user-added words, active via currentLevel==='custom'
@@ -4544,6 +4568,7 @@ const DB = (function(){
     if(!blob.levels){ const lv={}; LEVELS.forEach(L=>lv[L]=freshLevel()); blob.levels=lv; }
     if(blob.settings.autoReview===undefined) blob.settings.autoReview=true;
     if(blob.settings.hideLowerLevel===undefined) blob.settings.hideLowerLevel=false;
+    if(!blob.settings.theme) blob.settings.theme='system';
     if(!blob.storiesDone || typeof blob.storiesDone!=='object') blob.storiesDone={};
     if(!Array.isArray(blob.customWords)) blob.customWords=[];
     if(typeof blob.simOffset!=='number') blob.simOffset=0;
@@ -6598,6 +6623,28 @@ function simBar(){
 function simJump(n){ const s=DB.get(); s.simOffset=(s.simOffset||0)+n; DB.save(); renderHome(); }
 function simReset(){ const s=DB.get(); s.simOffset=0; DB.save(); renderHome(); }
 
+/* ===== Study-activity heatmap data (Batch 1) ===== */
+function activityData(weeks){
+  weeks=weeks||12; const s=DB.get(), days=s.days||{}; const base=today();
+  const total=weeks*7, cells=[]; let active=0, sum=0;
+  for(let i=total-1;i>=0;i--){
+    const key=dateKey(new Date(base.getTime()-i*MS_DAY));
+    const d=days[key]; const count=d?((d.new?d.new.length:0)+(d.reviewed?d.reviewed.length:0)):0;
+    if(count>0){ active++; sum+=count; }
+    const lvl=count===0?0:(count<3?1:(count<6?2:(count<10?3:4)));
+    cells.push({key,count,lvl});
+  }
+  return {cells,active,sum,weeks};
+}
+function activityHeatmap(){
+  const a=activityData(12);
+  const grid=a.cells.map(c=>`<div class="heat-cell${c.lvl?' l'+c.lvl:''}" title="${c.key}: ${c.count}"></div>`).join('');
+  return `<div class="heat-wrap" onclick="showScreen('history')" role="button" aria-label="Study activity over the last 12 weeks">
+    <div class="heat-head"><div class="t">Activity</div><div class="s">${a.active} active day${a.active!==1?'s':''} · ${a.sum} cards · 12 wks</div></div>
+    <div class="heat-grid">${grid}</div>
+    <div class="heat-legend">Less <span class="heat-cell"></span><span class="heat-cell l1"></span><span class="heat-cell l2"></span><span class="heat-cell l3"></span><span class="heat-cell l4"></span> More</div>
+  </div>`;
+}
 function renderHome(){
   const s=DB.get();
   const dk=todayKey(), day=s.days[dk]||{new:[],reviewed:[]};
@@ -6630,7 +6677,7 @@ function renderHome(){
         : `<button class="btn full" onclick="addMoreWords()">➕ Learn ${goal} new words</button>`}
     </div>
     ${pending===0 ? `<div class="sub" style="text-align:center;margin-top:4px">Got time? Add another set whenever you like.</div>` : ''}
-    ${''}
+    ${activityHeatmap()}
     ${storiesForLevel(storyLevel()).length ? `<div class="game-tile" style="margin-top:14px" onclick="showScreen('stories')"><div class="gi q">📕</div><div><div class="gt">Geschichte des Tages</div><div class="gd">Today's ${storyLevel()} story — read, listen &amp; quiz yourself</div></div></div>` : ''}
     ${(typeof THEMES!=='undefined'&&THEMES.length) ? `<div class="game-tile" style="margin-top:14px" onclick="showScreen('themes')"><div class="gi b">🗂️</div><div><div class="gt">Themen-Wortschatz</div><div class="gd">Phrasebook — ${THEMES.reduce((n,t)=>n+t.words.length,0)} words by topic (transport, health…)</div></div></div>` : ''}
     <div class="game-tile" style="margin-top:14px" onclick="showScreen('mywords')"><div class="gi p">📝</div><div><div class="gt">My Words</div><div class="gd">${(s.customWords||[]).length?`${s.customWords.length} word${s.customWords.length!==1?'s':''} you added — study, review & play games with them`:'Add your own vocabulary to study alongside the built-in words'}</div></div></div>
@@ -6850,7 +6897,7 @@ function renderThemeList(){
     const id=wid(w).replace(/'/g,"\\'");
     return `<div class="wl-item">
       <div class="wl-head"><div class="wl-de">${art}${germanOf(w)}</div>
-        <div style="display:flex;align-items:center;gap:8px"><button class="speak-btn speak-sm" onclick="speakWord(WORD_BY_ID['${id}'])">🔊</button>
+        <div style="display:flex;align-items:center;gap:8px"><button class="speak-btn speak-sm" aria-label="Aussprache anhören" onclick="speakWord(WORD_BY_ID['${id}'])">🔊</button>
         <span class="pos">${w.type}</span></div></div>
       <div class="wl-en">${w.en}</div>
       ${w.ex?`<div class="wl-ex">${w.ex}</div>`:''}
@@ -6891,7 +6938,7 @@ function renderMyWordsList(){
     const idJs=w.id.replace(/'/g,"\\'");
     return `<div class="wl-item" onclick="openEditWord('${idJs}')">
       <div class="wl-head"><div class="wl-de">${art}${germanOf(w)}</div>
-        <div style="display:flex;align-items:center;gap:8px"><button class="speak-btn speak-sm" onclick="speakWord(WORD_BY_ID['${idJs}'],event)">🔊</button>
+        <div style="display:flex;align-items:center;gap:8px"><button class="speak-btn speak-sm" aria-label="Aussprache anhören" onclick="speakWord(WORD_BY_ID['${idJs}'],event)">🔊</button>
         <span class="pos">${w.type}</span></div></div>
       <div class="wl-en">${w.en}</div>
       ${w.ex?`<div class="wl-ex">${w.ex}</div>`:''}
@@ -7271,6 +7318,12 @@ function renderSettings(){
     </div>
     <button class="btn ghost full" onclick="confirmLogout()">🚪 Log out (switch user)</button>
 
+    <div class="set-label">Appearance</div>
+    <div class="chips" style="padding-bottom:6px">
+      ${[['system','⚙️ System'],['light','☀️ Light'],['dark','🌙 Dark']].map(([k,lbl])=>`<div class="chip ${((s.settings.theme)||'system')===k?'active':''}" onclick="setTheme('${k}')">${lbl}</div>`).join('')}
+    </div>
+    <div class="sub" style="margin-bottom:6px">"System" follows your phone's light/dark setting.</div>
+
     <div class="set-label">Level</div>
     <div class="chips" style="padding-bottom:6px">
       ${DB.LEVELS.map(L=>`<div class="chip ${s.currentLevel===L?'active':''}" onclick="switchLevel('${L}')">${L}${levelHasWords(L)?'':' •'}</div>`).join('')}
@@ -7641,9 +7694,25 @@ function showModal(html){ document.getElementById('modalBody').innerHTML=html; d
 function closeModal(){ document.getElementById('overlay').classList.remove('show'); }
 
 /* ===== BOOT ===== */
+/* ===== Theme (Batch 1) ===== */
+function applyTheme(){
+  const s=DB.get(); const t=(s&&s.settings&&s.settings.theme)||'system';
+  document.documentElement.setAttribute('data-theme', t);
+  try{
+    const P=window.Capacitor && window.Capacitor.Plugins;
+    if(P&&P.StatusBar){
+      const sysLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+      const light = t==='light' || (t==='system' && sysLight);
+      P.StatusBar.setStyle({ style: light?'LIGHT':'DARK' }).catch(()=>{});
+    }
+  }catch(e){}
+}
+function setTheme(t){ const s=DB.get(); s.settings.theme=t; DB.save(); applyTheme(); renderSettings(); }
+
 (async function boot(){
   await DB.load();
   reindexCustomWords();
+  applyTheme();
   const s=DB.get();
   document.getElementById('app').innerHTML=`
     <section id="screen-home" class="screen active"></section>
@@ -7662,7 +7731,7 @@ function closeModal(){ document.getElementById('overlay').classList.remove('show
   else { showLogin(); }                              // returning → login (PIN or continue)
   document.addEventListener('visibilitychange',()=>{ if(document.hidden) DB.flush(); });
   window.addEventListener('pagehide',()=>{ DB.flush(); });
-  try{ const P=window.Capacitor && window.Capacitor.Plugins; if(P&&P.StatusBar){P.StatusBar.setStyle({style:'DARK'}).catch(()=>{});} if(P&&P.SplashScreen){setTimeout(()=>P.SplashScreen.hide().catch(()=>{}),300);} const warm=()=>{try{pickVoice();}catch(e){} document.removeEventListener('touchend',warm);}; document.addEventListener('touchend',warm,{once:true}); }catch(e){}
+  try{ const P=window.Capacitor && window.Capacitor.Plugins; if(P&&P.SplashScreen){setTimeout(()=>P.SplashScreen.hide().catch(()=>{}),300);} const warm=()=>{try{pickVoice();}catch(e){} document.removeEventListener('touchend',warm);}; document.addEventListener('touchend',warm,{once:true}); }catch(e){}
 })();
 /* =========================================================
    WORTSCHATZ — added features
