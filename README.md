@@ -7,10 +7,11 @@
 | Install on an iPhone (step by step) | [`docs/Deutsch_Wortschatz_iPhone_Install_Guide.pdf`](docs/Deutsch_Wortschatz_iPhone_Install_Guide.pdf) |
 | Read the product spec | [`docs/PRD.md`](docs/PRD.md) |
 | Read the technical design | [`docs/TDD.md`](docs/TDD.md) |
-| Read the test report (70/70 passing) | [`docs/TEST_REPORT.md`](docs/TEST_REPORT.md) |
-| Run the automated tests | `npm test` |
+| Read the test report (110/110 passing) | [`docs/TEST_REPORT.md`](docs/TEST_REPORT.md) |
+| See the content-quality audit | [`docs/CONTENT_AUDIT.md`](docs/CONTENT_AUDIT.md) |
+| Run the automated tests / audit | `npm test` · `npm run audit` |
+| CI (tests + Android build + web deploy) | GitHub Actions — `.github/workflows/` |
 | Build & test on Android (Windows) | `BUILD_GUIDE_WINDOWS.md` → run `build-android.bat` |
-| Build iOS (cloud, no Mac needed) | `codemagic.yaml` |
 
 > Docs are Markdown now (they render on GitHub). The older `.docx` versions in `docs/` are superseded by `PRD.md`, `TDD.md`, and `TEST_REPORT.md`.
 
@@ -24,6 +25,20 @@ into a native app you can run on an iPhone and submit to the App Store.
 Your whole app lives in **`www/index.html`** — one self-contained file. Capacitor
 wraps it in a native shell and gives it real device storage, status-bar control,
 and a splash screen.
+
+---
+
+## Features
+
+- **Flashcards** across **A1, A2 and B1** (4,537 curated words) + a **1,039-entry themed phrasebook**.
+- **Three study modes:** Flip · **Type** (active recall) · **Listen** (dictation).
+- **Smarter spaced repetition** — per-card ease + interval (SM-2-lite).
+- **Daily stories** (270) with audio, translation, and a comprehension quiz.
+- **My Words** — add your own vocabulary; it persists until you delete it.
+- **Daily reminder** (opt-in notification), **Home activity heatmap**, and streaks.
+- **System / Light / Dark theme** and an accessibility pass (zoom, focus, reduced-motion, screen-reader labels).
+- **Automatic on-device backup** (rides your iCloud/Google backup) + manual export/import.
+- **German text-to-speech**, fully **offline**, **no account** — all data stays on the device.
 
 ---
 
@@ -104,7 +119,7 @@ npm run dev          # serves www/ at http://localhost:3000
 - **CEFR levels (A1–C1).** Onboarding asks which level to learn and how many words per
   day. Each level keeps **its own separate progress, reviews, and history**, so a user
   can learn A2 and B1 in parallel and switch freely in Settings.
-- **Words currently loaded:** **A1** (559 words) and **A2** (1,141 words). B1 is partially loaded. B2/C1 are wired into the UI and marked "coming soon" until their word lists are added. To add a level, drop its
+- **Words currently loaded:** **A1, A2 and B1** are fully loaded (**4,537** curated words), plus a **1,039-entry** themed phrasebook. B2/C1 are wired into the UI and marked "coming soon" until their word lists are added. To add a level, drop its
   array into `WORDLISTS` near the top of the `<script>` in `index.html` (same word
   format as the A2 list) and it lights up automatically.
 
@@ -144,6 +159,9 @@ The **Settings** screen now shows:
   days of history. It also reminds the user that the built-in dictionary doesn't count
   toward this.
 - **Backup & restore:**
+  - **Automatic backup** — the app writes a small backup file to its Documents folder when
+    it goes to the background, so it's included in the device's iCloud/Google backup. Settings
+    shows the last backup time and a one-tap **"Restore latest auto-backup."**
   - **Export** writes a small `.json` backup. On device it opens the native iOS/Android
     **share sheet** (save to Files, AirDrop, email, etc.) via the Filesystem + Share
     plugins; in a browser it downloads the file.
@@ -165,10 +183,11 @@ them up automatically — no extra steps.
 | App icon | replace `assets/icon.png` (1024×1024), then `npm run icons` + `npx cap sync` |
 | Splash screen | replace `assets/splash.png` (2732×2732), then `npm run icons` + `npx cap sync` |
 | Colors / words / games | edit `www/index.html` directly, then `npx cap sync` |
-| Remove the test date-jump bar | in `index.html`, delete the `simBar()` call inside `renderHome()` (search "sim-bar") |
+| Theme colors | edit the CSS `--` tokens in `:root` and the `:root[data-theme="light"]` block |
 
-> **Before publishing:** remember to remove the yellow date-simulator bar (it's a
-> testing tool). Search `simBar()` in `index.html` and delete the line that injects it.
+> **Before publishing:** the app collects no personal data (everything stays on-device),
+> so a simple privacy-policy URL is enough for App Store review. (The old yellow dev
+> "test date" bar has already been removed.)
 
 ---
 
