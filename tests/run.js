@@ -22,7 +22,8 @@ const NAMES = ['WORDS','WORDS_A1','WORDS_B1','WORDLISTS','THEMES','THEME_WORDS',
   'levelHasWords','wid','germanOf','fullGerman','today','todayNum','todayKey','dueReviewIds',
   'isIntroduced','scheduledReviews','rateWord','pullNewBatch','ensureProg','streakCount',
   'totalLearned','buildSession','storiesForLevel','storyLevel','rotationFor','reindexCustomWords',
-  'shuffle','themeByKey','activityData','activityHeatmap','applyTheme','setTheme'];
+  'shuffle','themeByKey','activityData','activityHeatmap','applyTheme','setTheme',
+  'gradeTyped','normalizeAnswer','levenshtein','setStudyStyle','migrateProg','checkTyped'];
 scriptSrc += '\n;globalThis.__APP__={};' + NAMES.map(n =>
   `try{globalThis.__APP__[${JSON.stringify(n)}]=${n};}catch(e){}`).join('');
 
@@ -150,13 +151,14 @@ atest('VF-03','Vocab Filter','Filter ON at A1: keeps all (nothing lower exists)'
 /* =========================================================
    6. SPACED REPETITION ENGINE
    ========================================================= */
-test('SR-01','Spaced Repetition','Box intervals are [5,10,20,40,80] days', ()=> JSON.stringify(A.INTERVALS)===JSON.stringify([5,10,20,40,80]));
-atest('SR-02','Spaced Repetition','First "got" promotes box 0→1 and schedules +10 days', async ()=>{ await profile('sr2'); DB.setLevel('A1'); const id=A.wid(A.WORDLISTS.A1[0]); const tn=A.todayNum(); A.rateWord(id,'got'); const p=DB.get().progress[id]; assert(p.box===1,'box='+p.box); assert(p.due===tn+10,'due='+p.due+' want '+(tn+10)); });
-atest('SR-03','Spaced Repetition','Repeated "got" advances boxes and caps at box 4 (+80 days)', async ()=>{ await profile('sr3'); DB.setLevel('A1'); const id=A.wid(A.WORDLISTS.A1[1]); for(let i=0;i<6;i++) A.rateWord(id,'got'); const p=DB.get().progress[id]; assert(p.box===4,'box='+p.box); const tn=A.todayNum(); assert(p.due===tn+80,'due'); });
-atest('SR-04','Spaced Repetition','"again" reschedules at the current box interval (+5 on box 0)', async ()=>{ await profile('sr4'); DB.setLevel('A1'); const id=A.wid(A.WORDLISTS.A1[2]); const tn=A.todayNum(); A.rateWord(id,'again'); const p=DB.get().progress[id]; assert(p.box===0,'box'); assert(p.due===tn+5,'due'); });
-atest('SR-05','Spaced Repetition','A rated word is NOT due today but IS due after its interval elapses', async ()=>{ await profile('sr5'); DB.setLevel('A1'); const id=A.wid(A.WORDLISTS.A1[3]); A.rateWord(id,'got'); assert(!A.dueReviewIds().includes(id),'due too early'); DB.get().simOffset=10; assert(A.dueReviewIds().includes(id),'not due after 10d'); });
-atest('SR-06','Spaced Repetition','scheduledReviews() lists due dates sorted ascending with correct daysUntil', async ()=>{ await profile('sr6'); DB.setLevel('A1'); const a=A.wid(A.WORDLISTS.A1[4]), b=A.wid(A.WORDLISTS.A1[5]); A.rateWord(a,'again'); A.rateWord(b,'got'); const sr=A.scheduledReviews(); assert(sr.length===2); assert(sr[0].due<=sr[1].due,'not sorted'); assert(sr[0].daysUntil===sr[0].due-A.todayNum(),'daysUntil'); });
-atest('SR-07','Spaced Repetition','rateWord records the result in today\'s reviewed log', async ()=>{ await profile('sr7'); DB.setLevel('A1'); const id=A.wid(A.WORDLISTS.A1[6]); A.rateWord(id,'got'); const day=DB.get().days[A.todayKey()]; assert(day && day.reviewed.some(r=>r.id===id && r.result==='got')); });
+atest('SR-01','Spaced Repetition','New word starts at ease 2.5; first "got" schedules +1 day', async ()=>{ await profile('sr1'); DB.setLevel('A1'); const id=A.wid(A.WORDLISTS.A1[0]); const tn=A.todayNum(); A.rateWord(id,'got'); const p=DB.get().progress[id]; assert(p.interval===1,'interval='+p.interval); assert(p.due===tn+1,'due'); assert(p.reps===1,'reps'); assert(p.ease>2.5,'ease not raised'); });
+atest('SR-02','Spaced Repetition','Consecutive "got" grows the interval and never shrinks (1,4,…)', async ()=>{ await profile('sr2'); DB.setLevel('A1'); const id=A.wid(A.WORDLISTS.A1[1]); A.rateWord(id,'got'); const i1=DB.get().progress[id].interval; A.rateWord(id,'got'); const i2=DB.get().progress[id].interval; A.rateWord(id,'got'); const i3=DB.get().progress[id].interval; assert(i1<i2 && i2<i3, `${i1},${i2},${i3}`); assert(i1===1 && i2===4,'early intervals'); });
+atest('SR-03','Spaced Repetition','"again" relearns tomorrow (+1) and lowers the ease', async ()=>{ await profile('sr3'); DB.setLevel('A1'); const id=A.wid(A.WORDLISTS.A1[2]); A.rateWord(id,'got'); A.rateWord(id,'got'); const tn=A.todayNum(); A.rateWord(id,'again'); const p=DB.get().progress[id]; assert(p.interval===1 && p.due===tn+1,'not relearn'); assert(p.reps===0,'reps not reset'); assert(p.ease<2.6,'ease not lowered'); });
+atest('SR-04','Spaced Repetition','Ease is clamped to [1.3, 2.7]', async ()=>{ await profile('sr4'); DB.setLevel('A1'); const id=A.wid(A.WORDLISTS.A1[3]); for(let i=0;i<12;i++) A.rateWord(id,'again'); const lo=DB.get().progress[id].ease; assert(lo>=1.29 && lo<=1.31,'floor '+lo); const id2=A.wid(A.WORDLISTS.A1[4]); for(let i=0;i<12;i++) A.rateWord(id2,'got'); const hi=DB.get().progress[id2].ease; assert(hi>=2.69 && hi<=2.7,'cap '+hi); });
+atest('SR-05','Spaced Repetition','A word is due only after its interval elapses', async ()=>{ await profile('sr5'); DB.setLevel('A1'); const id=A.wid(A.WORDLISTS.A1[5]); A.rateWord(id,'got'); A.rateWord(id,'got'); assert(DB.get().progress[id].interval===4,'interval'); DB.get().simOffset=1; assert(!A.dueReviewIds().includes(id),'due too early'); DB.get().simOffset=4; assert(A.dueReviewIds().includes(id),'not due after interval'); });
+atest('SR-06','Spaced Repetition','scheduledReviews() is sorted ascending with correct daysUntil', async ()=>{ await profile('sr6'); DB.setLevel('A1'); const a=A.wid(A.WORDLISTS.A1[6]), b=A.wid(A.WORDLISTS.A1[7]); A.rateWord(a,'again'); A.rateWord(b,'got'); A.rateWord(b,'got'); const sr=A.scheduledReviews(); assert(sr.length===2); assert(sr[0].due<=sr[1].due,'not sorted'); assert(sr[0].daysUntil===sr[0].due-A.todayNum(),'daysUntil'); });
+atest('SR-07','Spaced Repetition','rateWord records the result in today\'s reviewed log', async ()=>{ await profile('sr7'); DB.setLevel('A1'); const id=A.wid(A.WORDLISTS.A1[8]); A.rateWord(id,'got'); const day=DB.get().days[A.todayKey()]; assert(day && day.reviewed.some(r=>r.id===id && r.result==='got')); });
+atest('SR-08','Spaced Repetition','Legacy box-only progress is migrated to ease/interval on rate', async ()=>{ await profile('sr8'); DB.setLevel('A1'); const id=A.wid(A.WORDLISTS.A1[9]); DB.get().progress[id]={box:2,due:5,graduated:false,lastSeen:1}; A.rateWord(id,'got'); const p=DB.get().progress[id]; assert(typeof p.ease==='number' && typeof p.interval==='number' && typeof p.reps==='number','not migrated'); });
 
 /* =========================================================
    7. DAILY BATCH & STUDY SESSION
@@ -243,6 +245,17 @@ test('AX-03','Accessibility','Focus-visible outline styling is present', ()=> /:
    16. CI (Batch 1)
    ========================================================= */
 test('CI-01','Config','GitHub Actions test workflow exists and runs npm test', ()=>{ const p=path.join(__dirname,'..','.github','workflows','test.yml'); if(!fs.existsSync(p)) return 'missing workflow'; return /npm test/.test(fs.readFileSync(p,'utf8')); });
+
+/* =========================================================
+   17. STUDY MODES — Type & Listen (Batch 2)
+   ========================================================= */
+test('SM-01','Study Modes','Typing check: exact match is "correct"', ()=> A.gradeTyped('gehen',{type:'verb',w:'gehen'})==='correct');
+test('SM-02','Study Modes','Typing check: article is optional for nouns', ()=> A.gradeTyped('das Haus',{type:'noun',base:'Haus',art:'das'})==='correct' && A.gradeTyped('Haus',{type:'noun',base:'Haus',art:'das'})==='correct');
+test('SM-03','Study Modes','Typing check: a one-character typo is "almost"', ()=> A.gradeTyped('gehn',{type:'verb',w:'gehen'})==='almost' || A.levenshtein('gehn','gehen')+'');
+test('SM-04','Study Modes','Typing check: a clearly different answer is "wrong"', ()=> A.gradeTyped('laufen',{type:'verb',w:'gehen'})==='wrong');
+test('SM-05','Study Modes','Typing check: case- and whitespace-insensitive', ()=> A.gradeTyped('  GEHEN  ',{type:'verb',w:'gehen'})==='correct');
+test('SM-06','Study Modes','Study style selector present in the study screen (Flip/Type/Listen)', ()=> /setStudyStyle/.test(HTML) && /⌨️ Type/.test(HTML) && /🎧 Listen/.test(HTML));
+atest('SM-07','Study Modes','studyStyle defaults to flip and setStudyStyle persists', async ()=>{ await profile('sm7'); DB.setLevel('A1'); assert(DB.get().settings.studyStyle==='flip','default '+DB.get().settings.studyStyle); A.setStudyStyle('type'); assert(DB.get().settings.studyStyle==='type','not persisted'); A.setStudyStyle('flip'); });
 
 /* =========================================================
    run async tests, then report
