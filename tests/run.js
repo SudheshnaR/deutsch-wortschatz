@@ -23,7 +23,8 @@ const NAMES = ['WORDS','WORDS_A1','WORDS_B1','WORDLISTS','THEMES','THEME_WORDS',
   'isIntroduced','scheduledReviews','rateWord','pullNewBatch','ensureProg','streakCount',
   'totalLearned','buildSession','storiesForLevel','storyLevel','rotationFor','reindexCustomWords',
   'shuffle','themeByKey','activityData','activityHeatmap','applyTheme','setTheme',
-  'gradeTyped','normalizeAnswer','levenshtein','setStudyStyle','migrateProg','checkTyped'];
+  'gradeTyped','normalizeAnswer','levenshtein','setStudyStyle','migrateProg','checkTyped',
+  'reminderNotification','reminderTimeParts','applyReminder','autoBackup','setReminderEnabled','setReminderTime','setAutoBackup','notifPlugin','fsPlugin','restoreAutoBackup'];
 scriptSrc += '\n;globalThis.__APP__={};' + NAMES.map(n =>
   `try{globalThis.__APP__[${JSON.stringify(n)}]=${n};}catch(e){}`).join('');
 
@@ -256,6 +257,20 @@ test('SM-04','Study Modes','Typing check: a clearly different answer is "wrong"'
 test('SM-05','Study Modes','Typing check: case- and whitespace-insensitive', ()=> A.gradeTyped('  GEHEN  ',{type:'verb',w:'gehen'})==='correct');
 test('SM-06','Study Modes','Study style selector present in the study screen (Flip/Type/Listen)', ()=> /setStudyStyle/.test(HTML) && /⌨️ Type/.test(HTML) && /🎧 Listen/.test(HTML));
 atest('SM-07','Study Modes','studyStyle defaults to flip and setStudyStyle persists', async ()=>{ await profile('sm7'); DB.setLevel('A1'); assert(DB.get().settings.studyStyle==='flip','default '+DB.get().settings.studyStyle); A.setStudyStyle('type'); assert(DB.get().settings.studyStyle==='type','not persisted'); A.setStudyStyle('flip'); });
+
+/* =========================================================
+   18. REMINDERS & AUTO-BACKUP (Batch 3)
+   ========================================================= */
+atest('RB-01','Reminders','Reminder defaults: off, 19:00', async ()=>{ await DB.loginAs('rb1',null); const r=DB.get().settings.reminder; assert(r && r.enabled===false && r.time==='19:00', JSON.stringify(r)); });
+atest('RB-02','Backup','Auto-backup defaults on', async ()=>{ await DB.loginAs('rb2',null); assert(DB.get().settings.autoBackup===true); });
+atest('RB-03','Backup','A legacy backup gains reminder + autoBackup defaults on import', async ()=>{ await DB.loginAs('rb3',null); await DB.importData({currentLevel:'A1', settings:{reviewMode:'mixed',dailyGoal:10,autoReview:true,hideLowerLevel:false}, levels:{A1:{progress:{},days:{}}}, storiesDone:{}, simOffset:0}); const st=DB.get().settings; assert(st.reminder && st.reminder.enabled===false,'reminder'); assert(st.autoBackup===true,'autoBackup'); });
+test('RB-04','Reminders','reminderTimeParts parses HH:MM and clamps bad values', ()=>{ const a=A.reminderTimeParts({reminder:{time:'07:30'}}); assert(a.hour===7&&a.minute===30,'parse'); const b=A.reminderTimeParts({reminder:{time:'99:99'}}); assert(b.hour===23&&b.minute===59,'clamp'); return true; });
+test('RB-05','Reminders','reminderNotification builds id:1 with an on-schedule at the chosen time', ()=>{ const n=A.reminderNotification({reminder:{time:'08:15'}}); return n.id===1 && n.schedule && n.schedule.on && n.schedule.on.hour===8 && n.schedule.on.minute===15; });
+atest('RB-06','Reminders','setReminderEnabled + setReminderTime persist', async ()=>{ await DB.loginAs('rb6',null); DB.setLevel('A1'); A.setReminderEnabled(true); assert(DB.get().settings.reminder.enabled===true,'enable'); A.setReminderTime('08:15'); assert(DB.get().settings.reminder.time==='08:15','time'); A.setReminderEnabled(false); });
+atest('RB-07','Reminders','applyReminder + autoBackup no-op gracefully without native plugins', async ()=>{ await DB.loginAs('rb7',null); await A.applyReminder(); await A.autoBackup(); return true; });
+atest('RB-08','Backup','setAutoBackup(false) disables and autoBackup early-returns', async ()=>{ await DB.loginAs('rb8',null); A.setAutoBackup(false); assert(DB.get().settings.autoBackup===false); await A.autoBackup(); return true; });
+test('RB-09','Config','local-notifications plugin is declared', ()=> !!pkg.dependencies['@capacitor/local-notifications']);
+test('RB-10','Reminders','Settings screen exposes the reminder toggle + auto-backup restore', ()=> /setReminderEnabled/.test(HTML) && /restoreAutoBackup/.test(HTML) && /Automatic backup/.test(HTML));
 
 /* =========================================================
    run async tests, then report

@@ -8,6 +8,8 @@ PODS:
   - CapacitorCordova (6.2.1)
   - CapacitorFilesystem (6.0.4):
     - Capacitor
+  - CapacitorLocalNotifications (6.1.3):
+    - Capacitor
   - CapacitorPreferences (6.0.4):
     - Capacitor
   - CapacitorShare (6.0.4):
@@ -23,6 +25,7 @@ DEPENDENCIES:
   - "CapacitorCommunityTextToSpeech (from `../../node_modules/@capacitor-community/text-to-speech`)"
   - "CapacitorCordova (from `../../node_modules/@capacitor/ios`)"
   - "CapacitorFilesystem (from `../../node_modules/@capacitor/filesystem`)"
+  - "CapacitorLocalNotifications (from `../../node_modules/@capacitor/local-notifications`)"
   - "CapacitorPreferences (from `../../node_modules/@capacitor/preferences`)"
   - "CapacitorShare (from `../../node_modules/@capacitor/share`)"
   - "CapacitorSplashScreen (from `../../node_modules/@capacitor/splash-screen`)"
@@ -39,6 +42,8 @@ EXTERNAL SOURCES:
     :path: "../../node_modules/@capacitor/ios"
   CapacitorFilesystem:
     :path: "../../node_modules/@capacitor/filesystem"
+  CapacitorLocalNotifications:
+    :path: "../../node_modules/@capacitor/local-notifications"
   CapacitorPreferences:
     :path: "../../node_modules/@capacitor/preferences"
   CapacitorShare:
@@ -54,11 +59,12 @@ SPEC CHECKSUMS:
   CapacitorCommunityTextToSpeech: 6fee8872a6ce215f34413efe43b04447187e008d
   CapacitorCordova: 8d93e14982f440181be7304aa9559ca631d77fff
   CapacitorFilesystem: 45e086a4396be03456c3d53d34b17c89169dd8cd
+  CapacitorLocalNotifications: b205182fab8947a0c412d56d72b709738a9d28e7
   CapacitorPreferences: 877e40a640ee4311d4f7e334227a7b40052b9039
   CapacitorShare: 44c43f74b95500ba7399c2ac21f0d55efc1a931e
   CapacitorSplashScreen: f65292695df7d7b24a22954a6cfbaecadd1718a4
   CapacitorStatusBar: 38665f1a18c55677098367a29f6b42126b72dc65
 
-PODFILE CHECKSUM: e8a2ad1a40eaac6a6df278dba7ace83f66e2f008
+PODFILE CHECKSUM: b48bcab2df1871a2ec7929794253b584f76d3270
 
 COCOAPODS: 1.11.3

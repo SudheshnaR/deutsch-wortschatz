@@ -4543,7 +4543,7 @@ const DB = (function(){
     return {
       profile: name ? {name, pin: pin||null} : null,   // null while logged out
       currentLevel:null,            // chosen on first run
-      settings:{ reviewMode:'mixed', dailyGoal:10, autoReview:true, hideLowerLevel:false, theme:'system', studyStyle:'flip' },
+      settings:{ reviewMode:'mixed', dailyGoal:10, autoReview:true, hideLowerLevel:false, theme:'system', studyStyle:'flip', reminder:{enabled:false,time:'19:00'}, autoBackup:true, lastBackupAt:null },
       levels,                       // per-level {progress, days}
       storiesDone:{},               // {storyId: bestScorePct}
       customWords:[],               // user-added words, active via currentLevel==='custom'
@@ -4570,6 +4570,8 @@ const DB = (function(){
     if(blob.settings.hideLowerLevel===undefined) blob.settings.hideLowerLevel=false;
     if(!blob.settings.theme) blob.settings.theme='system';
     if(!blob.settings.studyStyle) blob.settings.studyStyle='flip';
+    if(!blob.settings.reminder || typeof blob.settings.reminder!=='object') blob.settings.reminder={enabled:false,time:'19:00'};
+    if(blob.settings.autoBackup===undefined) blob.settings.autoBackup=true;
     if(!blob.storiesDone || typeof blob.storiesDone!=='object') blob.storiesDone={};
     if(!Array.isArray(blob.customWords)) blob.customWords=[];
     if(typeof blob.simOffset!=='number') blob.simOffset=0;
@@ -7371,6 +7373,13 @@ function renderSettings(){
     </div>
     <div class="sub" style="margin-bottom:6px">"System" follows your phone's light/dark setting.</div>
 
+    <div class="set-label">Daily reminder</div>
+    <div class="card-box" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div style="flex:1;padding-right:12px"><div style="font-weight:700">Remind me to study</div><div class="opt-desc">A gentle daily notification so you keep your streak.</div></div>
+      <div class="toggle ${s.settings.reminder&&s.settings.reminder.enabled?'on':''}" onclick="setReminderEnabled(${!(s.settings.reminder&&s.settings.reminder.enabled)})"><div class="knob"></div></div>
+    </div>
+    ${s.settings.reminder&&s.settings.reminder.enabled?`<div class="card-box" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px"><span style="font-weight:600">Time</span><input type="time" value="${(s.settings.reminder&&s.settings.reminder.time)||'19:00'}" onchange="setReminderTime(this.value)" aria-label="Reminder time" style="font-size:16px;padding:6px 10px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--txt)"></div>`:''}
+
     <div class="set-label">Level</div>
     <div class="chips" style="padding-bottom:6px">
       ${DB.LEVELS.map(L=>`<div class="chip ${s.currentLevel===L?'active':''}" onclick="switchLevel('${L}')">${L}${levelHasWords(L)?'':' •'}</div>`).join('')}
@@ -7430,6 +7439,12 @@ function renderSettings(){
     </div>
 
     <div class="set-label">Backup &amp; restore</div>
+    <div class="card-box" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div style="flex:1;padding-right:12px"><div style="font-weight:700">Automatic backup</div><div class="opt-desc">Keeps a backup on this device (included in your iCloud/device backup). ${s.settings.lastBackupAt?'Last saved '+new Date(s.settings.lastBackupAt).toLocaleString('en-GB'):'Runs automatically when you leave the app.'}</div></div>
+      <div class="toggle ${s.settings.autoBackup!==false?'on':''}" onclick="setAutoBackup(${s.settings.autoBackup===false})"><div class="knob"></div></div>
+    </div>
+    <button class="btn ghost full" onclick="restoreAutoBackup()">↩️ Restore latest auto-backup</button>
+    <div style="height:10px"></div>
     <button class="btn ghost full" onclick="exportData()">⬆️ Export my progress (save to file)</button>
     <div style="height:10px"></div>
     <button class="btn ghost full" onclick="document.getElementById('importFile').click()">⬇️ Import / restore from file</button>
@@ -7756,10 +7771,34 @@ function applyTheme(){
 }
 function setTheme(t){ const s=DB.get(); s.settings.theme=t; DB.save(); applyTheme(); renderSettings(); }
 
+/* ===== Reminders & auto-backup (Batch 3) ===== */
+let _autoBackupObj=null;
+function notifPlugin(){ return (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.LocalNotifications) || null; }
+function fsPlugin(){ return (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Filesystem) || null; }
+function reminderTimeParts(settings){ const t=(settings&&settings.reminder&&settings.reminder.time)||'19:00'; const m=/^(\d{1,2}):(\d{2})/.exec(t)||[]; return { hour:Math.min(23,Math.max(0,parseInt(m[1]||'19',10)||0)), minute:Math.min(59,Math.max(0,parseInt(m[2]||'0',10)||0)) }; }
+function reminderNotification(settings){ const t=reminderTimeParts(settings); return { id:1, title:'Zeit für Deutsch! 🇩🇪', body:'Deine Karten warten — ein paar Minuten reichen.', schedule:{ on:{ hour:t.hour, minute:t.minute }, allowWhileIdle:true } }; }
+async function applyReminder(){
+  const P=notifPlugin(); if(!P) return; const s=DB.get(); const r=s.settings.reminder||{enabled:false};
+  try{
+    await P.cancel({notifications:[{id:1}]}).catch(()=>{});
+    if(r.enabled){
+      const perm=await P.requestPermissions().catch(()=>({display:'denied'}));
+      if(perm && perm.display!=='denied') await P.schedule({notifications:[reminderNotification(s.settings)]}).catch(()=>{});
+    }
+  }catch(e){}
+}
+function setReminderEnabled(on){ const s=DB.get(); s.settings.reminder=Object.assign({enabled:false,time:'19:00'}, s.settings.reminder||{}, {enabled:!!on}); DB.save(); applyReminder(); renderSettings(); }
+function setReminderTime(val){ const s=DB.get(); s.settings.reminder=Object.assign({enabled:false,time:'19:00'}, s.settings.reminder||{}, {time:val||'19:00'}); DB.save(); if(s.settings.reminder.enabled) applyReminder(); renderSettings(); }
+async function autoBackup(){ const P=fsPlugin(); const s=DB.get(); if(!P || (s.settings&&s.settings.autoBackup===false)) return; try{ await P.writeFile({ path:'wortschatz-backup.json', data:DB.serialize(), directory:'DOCUMENTS', encoding:'utf8' }); s.settings.lastBackupAt=Date.now(); }catch(e){} }
+function setAutoBackup(on){ const s=DB.get(); s.settings.autoBackup=!!on; DB.save(); if(on) autoBackup(); renderSettings(); }
+async function restoreAutoBackup(){ const P=fsPlugin(); if(!P){ toast('Restore runs in the app'); return; } try{ const res=await P.readFile({ path:'wortschatz-backup.json', directory:'DOCUMENTS', encoding:'utf8' }); _autoBackupObj=JSON.parse(res.data); }catch(e){ toast('No auto-backup found yet'); return; } showModal(`<h2>Restore auto-backup?</h2><div class="lead">This replaces your current progress with the most recent automatic backup on this device.</div><button class="btn warn full" onclick="doRestoreAuto()">Restore</button><div style="height:10px"></div><button class="btn ghost full" onclick="closeModal()">Cancel</button>`); }
+async function doRestoreAuto(){ if(!_autoBackupObj) return; try{ await DB.importData(_autoBackupObj); }catch(e){} _autoBackupObj=null; closeModal(); toast('✅ Progress restored'); renderHome(); showScreen('home'); }
+
 (async function boot(){
   await DB.load();
   reindexCustomWords();
   applyTheme();
+  applyReminder();
   const s=DB.get();
   document.getElementById('app').innerHTML=`
     <section id="screen-home" class="screen active"></section>
@@ -7776,8 +7815,8 @@ function setTheme(t){ const s=DB.get(); s.settings.theme=t; DB.save(); applyThem
   renderHome();
   if(s.firstRun || !s.profile){ showLogin(); }      // brand new → login then onboarding
   else { showLogin(); }                              // returning → login (PIN or continue)
-  document.addEventListener('visibilitychange',()=>{ if(document.hidden) DB.flush(); });
-  window.addEventListener('pagehide',()=>{ DB.flush(); });
+  document.addEventListener('visibilitychange',()=>{ if(document.hidden){ DB.flush(); autoBackup(); } });
+  window.addEventListener('pagehide',()=>{ DB.flush(); autoBackup(); });
   try{ const P=window.Capacitor && window.Capacitor.Plugins; if(P&&P.SplashScreen){setTimeout(()=>P.SplashScreen.hide().catch(()=>{}),300);} const warm=()=>{try{pickVoice();}catch(e){} document.removeEventListener('touchend',warm);}; document.addEventListener('touchend',warm,{once:true}); }catch(e){}
 })();
 /* =========================================================
