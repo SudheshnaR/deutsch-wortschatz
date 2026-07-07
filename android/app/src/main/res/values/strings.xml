@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Deutsch Wortschatz</string>
+    <string name="title_activity_main">Deutsch Wortschatz</string>
+    <string name="package_name">com.sudheshna.deutschwortschatz</string>
+    <string name="custom_url_scheme">com.sudheshna.deutschwortschatz</string>
+</resources>
