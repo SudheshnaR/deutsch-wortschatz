@@ -287,6 +287,14 @@ test('CQ-12','Content Quality','No word field has stray leading/trailing whitesp
 test('CQ-13','Content Quality','No exact duplicate (word+article+meaning) within a level', ()=>{ let dups=[]; for(const [l,arr] of Object.entries(A.WORDLISTS||{})){ const seen=new Set(); for(const w of arr){ const k=[w.type,(A.germanOf(w)||'').toLowerCase(),w.art||'',(w.en||'').toLowerCase().trim()].join('|'); if(seen.has(k)) dups.push(l+':'+A.germanOf(w)); else seen.add(k);} } assert(dups.length===0, dups.slice(0,3).join(',')); return true; });
 
 /* =========================================================
+   20. LIGHT-THEME CONTRAST (regression guards)
+   ========================================================= */
+test('LT-01','Theme','Light theme overrides every surface token (incl. --bg2/--card2)', ()=>{ const m=HTML.match(/:root\[data-theme="light"\]\{([^}]*)\}/); assert(m,'no light block'); const b=m[1]; ['--bg','--bg2','--card','--card2','--txt','--dim','--line'].forEach(t=>assert(b.includes(t+':'),'light theme missing '+t)); return true; });
+test('LT-02','Theme','No component hardcodes a dark background that breaks light mode', ()=>{ assert(!/linear-gradient\(140deg,#272c3a/.test(HTML),'.hero hardcoded dark'); assert(!/linear-gradient\(150deg,#2b3344/.test(HTML),'.fc-back hardcoded dark'); assert(!/\.theme-stickybar\{[^}]*#0f1117/.test(HTML.replace(/\n/g,' ')),'.theme-stickybar hardcoded dark'); return true; });
+test('LT-03','Theme','Quiz options + flashcard faces use themeable surface tokens', ()=>{ assert(/\.opt\{[^}]*background:var\(--bg2\)/.test(HTML),'.opt not tokenised'); assert(/\.fc-back\{[^}]*var\(--card2\)/.test(HTML),'.fc-back not tokenised'); return true; });
+atest('CW-04','Custom Words','Added words persist across a reload (saved to storage)', async ()=>{ await DB.loginAs('cwpersist',null); await DB.addCustomWord({w:'Testwort',en:'test word',type:'other',ex:'Das ist ein Testwort.'}); await DB.load(); assert((DB.get().customWords||[]).some(x=>x.w==='Testwort'),'custom word lost after reload'); });
+
+/* =========================================================
    run async tests, then report
    ========================================================= */
 (async ()=>{
