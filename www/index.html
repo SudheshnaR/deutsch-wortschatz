@@ -164,8 +164,6 @@ nav button.active{color:var(--accent)}
 .empty{text-align:center;color:var(--dim);padding:40px 20px;font-size:14px;line-height:1.6}
 .toast{position:fixed;bottom:94px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--accent);color:#0f1117;padding:12px 22px;border-radius:30px;font-size:14px;font-weight:700;opacity:0;transition:.3s;z-index:200;pointer-events:none;box-shadow:0 8px 30px rgba(0,0,0,.4)}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-.sim-bar{display:flex;align-items:center;gap:8px;background:rgba(255,206,92,.08);border:1px dashed rgba(255,206,92,.4);border-radius:12px;padding:9px 12px;margin-bottom:14px;font-size:12px;font-weight:600;color:var(--warn)}
-.sim-bar button{background:rgba(255,206,92,.2);color:var(--warn);border:none;border-radius:8px;padding:5px 10px;font-weight:700;cursor:pointer;font-family:inherit;font-size:12px}
 .loading{display:flex;align-items:center;justify-content:center;height:100vh;color:var(--dim);font-size:15px}
 
 /* ===== GAMES ===== */
@@ -6615,20 +6613,6 @@ function showScreen(id){
   if(id==='settings') renderSettings();
 }
 
-function simBar(){
-  const s=DB.get();
-  const off=s.simOffset||0;
-  return `<div class="sim-bar">
-    <span>🧪 Test date: ${fmtDate(today())}${off?` (+${off}d)`:''}</span>
-    <span style="flex:1"></span>
-    <button onclick="simJump(1)">+1 day</button>
-    <button onclick="simJump(5)">+5</button>
-    <button onclick="simJump(-1)">−1</button>
-    ${off?`<button onclick="simReset()">reset</button>`:''}
-  </div>`;
-}
-function simJump(n){ const s=DB.get(); s.simOffset=(s.simOffset||0)+n; DB.save(); renderHome(); }
-function simReset(){ const s=DB.get(); s.simOffset=0; DB.save(); renderHome(); }
 
 /* ===== Study-activity heatmap data (Batch 1) ===== */
 function activityData(weeks){
@@ -6667,7 +6651,6 @@ function renderHome(){
   const app=document.getElementById('screen-home');
   app.innerHTML=`
     <div class="section-head"><div><h1 class="title">Hallo${name?', '+name:''} 👋</h1><div class="sub">${fmtDateLong(today())} · ${levelLabel(lvl)}</div></div><button class="icon-gear" onclick="showScreen('settings')" aria-label="Settings">⚙️</button></div>
-    ${simBar()}
     <div class="stat-grid">
       <div class="stat learned"><div class="n">${totalLearned()}</div><div class="l">Learned</div></div>
       <div class="stat due"><div class="n">${due}</div><div class="l">Due today</div></div>
