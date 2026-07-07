@@ -10,7 +10,9 @@
     "open:android": "npx cap open android",
     "add:ios": "npx cap add ios",
     "add:android": "npx cap add android",
-    "icons": "npx @capacitor/assets generate --assetPath assets"
+    "icons": "npx @capacitor/assets generate --assetPath assets",
+    "test": "node tests/run.js",
+    "test:report": "node tests/run.js && node tests/gen_report.js"
   },
   "dependencies": {
     "@capacitor/core": "^6.1.2",

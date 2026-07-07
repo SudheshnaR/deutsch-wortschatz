@@ -6,3 +6,6 @@ node_modules/
 # android/
 *.log
 .vscode/
+
+# Generated test output (re-created by `npm test`)
+tests/results.json
