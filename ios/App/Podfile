@@ -11,13 +11,14 @@ install! 'cocoapods', :disable_input_output_paths => true
 def capacitor_pods
   pod 'Capacitor', :path => '../../node_modules/@capacitor/ios'
   pod 'CapacitorCordova', :path => '../../node_modules/@capacitor/ios'
-  pod 'CapacitorPreferences', :path => '../../node_modules/@capacitor/preferences'
+  pod 'CapacitorCommunitySpeechRecognition', :path => '../../node_modules/@capacitor-community/speech-recognition'
+  pod 'CapacitorCommunityTextToSpeech', :path => '../../node_modules/@capacitor-community/text-to-speech'
   pod 'CapacitorFilesystem', :path => '../../node_modules/@capacitor/filesystem'
+  pod 'CapacitorLocalNotifications', :path => '../../node_modules/@capacitor/local-notifications'
+  pod 'CapacitorPreferences', :path => '../../node_modules/@capacitor/preferences'
   pod 'CapacitorShare', :path => '../../node_modules/@capacitor/share'
   pod 'CapacitorSplashScreen', :path => '../../node_modules/@capacitor/splash-screen'
   pod 'CapacitorStatusBar', :path => '../../node_modules/@capacitor/status-bar'
-  pod 'CapacitorCommunityTextToSpeech', :path => '../../node_modules/@capacitor-community/text-to-speech'
-  pod 'CapacitorCommunitySpeechRecognition', :path => '../../node_modules/@capacitor-community/speech-recognition'
 end
 
 target 'App' do
