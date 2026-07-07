@@ -4543,7 +4543,7 @@ const DB = (function(){
     return {
       profile: name ? {name, pin: pin||null} : null,   // null while logged out
       currentLevel:null,            // chosen on first run
-      settings:{ reviewMode:'mixed', dailyGoal:10, autoReview:true, hideLowerLevel:false, theme:'system' },
+      settings:{ reviewMode:'mixed', dailyGoal:10, autoReview:true, hideLowerLevel:false, theme:'system', studyStyle:'flip' },
       levels,                       // per-level {progress, days}
       storiesDone:{},               // {storyId: bestScorePct}
       customWords:[],               // user-added words, active via currentLevel==='custom'
@@ -4569,6 +4569,7 @@ const DB = (function(){
     if(blob.settings.autoReview===undefined) blob.settings.autoReview=true;
     if(blob.settings.hideLowerLevel===undefined) blob.settings.hideLowerLevel=false;
     if(!blob.settings.theme) blob.settings.theme='system';
+    if(!blob.settings.studyStyle) blob.settings.studyStyle='flip';
     if(!blob.storiesDone || typeof blob.storiesDone!=='object') blob.storiesDone={};
     if(!Array.isArray(blob.customWords)) blob.customWords=[];
     if(typeof blob.simOffset!=='number') blob.simOffset=0;
@@ -6461,7 +6462,9 @@ function fmtDateLong(d){ return d.toLocaleDateString('en-GB',{weekday:'long',day
 
 /* ===== SRS core ===== */
 const INTERVALS=[5,10,20,40,80];  // box -> days until next review
-function ensureProg(id){ const s=DB.get(); if(!s.progress[id]) s.progress[id]={box:0,due:null,graduated:false,lastSeen:null}; return s.progress[id]; }
+function ensureProg(id){ const s=DB.get(); if(!s.progress[id]) s.progress[id]={box:0,due:null,graduated:false,lastSeen:null,ease:2.5,reps:0,interval:0}; return s.progress[id]; }
+// upgrade legacy box-only progress to the ease/interval (SM-2-lite) model
+function migrateProg(p){ if(p.ease===undefined) p.ease=2.5; if(p.reps===undefined) p.reps=(p.box||0); if(p.interval===undefined) p.interval=(p.box!=null?(INTERVALS[Math.min(p.box,INTERVALS.length-1)]||1):0); return p; }
 
 function dueReviewIds(){
   const s=DB.get(), tn=todayNum();
@@ -6483,16 +6486,18 @@ function scheduledReviews(){
 
 // rate a word during study: result = 'got' | 'again'
 function rateWord(id, result){
-  const s=DB.get(), p=ensureProg(id), tn=todayNum();
+  const s=DB.get(), p=migrateProg(ensureProg(id)), tn=todayNum();
   if(result==='got'){
-    p.box=Math.min(p.box+1, INTERVALS.length-1);
-    p.due=tn+INTERVALS[p.box];
-    // graduate after reaching last box
-    if(p.box>=INTERVALS.length-1 && result==='got') p.graduated=false; // keep cycling; never hard-graduate so user can always review
-  } else { // again — keep same/earlier box, due again after current box interval
-    p.box=Math.max(0,p.box); // stay
-    p.due=tn+INTERVALS[p.box];
+    // SM-2-lite: interval grows by the per-card ease; ease nudges up
+    p.ease=Math.min(2.7, p.ease+0.05);
+    if(p.reps<=0) p.interval=1; else if(p.reps===1) p.interval=4; else p.interval=Math.max(1, Math.round(p.interval*p.ease));
+    p.reps=(p.reps||0)+1;
+  } else { // again — relearn tomorrow, lower the ease (floor 1.3)
+    p.ease=Math.max(1.3, p.ease-0.2);
+    p.reps=0; p.interval=1;
   }
+  p.box=Math.min(p.reps, INTERVALS.length-1); // keep box roughly in sync for any legacy reader
+  p.due=tn+p.interval;
   p.lastSeen=tn;
   // record in today's day log
   const dk=todayKey();
@@ -6582,7 +6587,7 @@ function buildSession(reviewsOnly){
   else { queue=shuffle([...dueQueue, ...newQueue]); } // 'mixed' default
   // guard against ids left over from a since-deleted word (e.g. a removed custom word)
   queue=queue.filter(item=>WORD_BY_ID[item.id]);
-  session={queue, i:0, flipped:false, mode, dueCount:dueQueue.length, newCount:newQueue.length, reviewsOnly:!!reviewsOnly};
+  session={queue, i:0, flipped:false, answered:false, typed:'', verdict:null, mode, dueCount:dueQueue.length, newCount:newQueue.length, reviewsOnly:!!reviewsOnly};
   return session;
 }
 
@@ -6730,9 +6735,15 @@ function renderStudy(){
   const item=session.queue[session.i];
   const w=WORD_BY_ID[item.id];
   const art = w.type==='noun' ? `<span class="art-${w.art}">${w.art}</span>` : '';
-  el.innerHTML=`
+  const style=(DB.get().settings.studyStyle)||'flip';
+  const head=`
     <div class="section-head"><div><h1 class="title">Study</h1><div class="sub">${session.mode==='separate'&&item.kind==='review'?'Review session':'Today'}</div></div></div>
     <div class="study-prog">Card ${session.i+1} of ${session.queue.length}${item.kind==='review'?' · 🔁 review':''}</div>
+    <div class="chips" style="justify-content:center;margin-bottom:12px">
+      ${[['flip','🔄 Flip'],['type','⌨️ Type'],['listen','🎧 Listen']].map(([k,l])=>`<div class="chip ${style===k?'active':''}" onclick="setStudyStyle('${k}')">${l}</div>`).join('')}
+    </div>`;
+  if(style==='flip'){
+    el.innerHTML=head+`
     <div class="fc-wrap">
       <div class="fc" id="fc" onclick="flipStudy()">
         <div class="fc-face fc-front">
@@ -6754,9 +6765,38 @@ function renderStudy(){
         </div>
       </div>
     </div>
-    <div id="rateRow"></div>
-  `;
-  session.flipped=false;
+    <div id="rateRow"></div>`;
+    session.flipped=false;
+  } else if(!session.answered){
+    const prompt = style==='listen'
+      ? `<div class="fc-top"><span class="pill ${w.type}">${w.type}</span><span style="font-size:12px;color:var(--dim)">listen</span></div>
+         <div class="fc-center"><div class="sub" style="margin-bottom:12px">🎧 Listen and type what you hear</div>
+         <button class="speak-btn" onclick="speakWord(WORD_BY_ID['${item.id}'],event)" aria-label="Replay audio">🔊 Replay</button></div>`
+      : `<div class="fc-top"><span class="pill ${w.type}">${w.type}</span><span style="font-size:12px;color:var(--dim)">type the German</span></div>
+         <div class="fc-center"><div class="fc-en">${w.en}</div>
+         <div class="sub" style="margin-top:6px">Type the German word${w.type==='noun'?' (article optional)':''}</div></div>`;
+    el.innerHTML=head+`
+      <div class="card-box" style="min-height:190px;display:flex;flex-direction:column;justify-content:center;text-align:center">${prompt}</div>
+      <input class="search-box" id="typeAns" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Your answer…" aria-label="Type your answer" onkeydown="if(event.key==='Enter')checkTyped()">
+      <button class="btn full" style="margin-top:10px" onclick="checkTyped()">Check</button>`;
+    if(style==='listen'){ try{ speakWord(w); }catch(e){} }
+  } else {
+    const vmap={correct:['✓ Correct','var(--accent)'],almost:['≈ Almost','var(--adj)'],wrong:['✗ Not quite','var(--other)']};
+    const vd=vmap[session.verdict]||vmap.wrong;
+    el.innerHTML=head+`
+      <div class="card-box" style="min-height:190px;display:flex;flex-direction:column;justify-content:center;text-align:center">
+        <div style="font-size:13px;color:var(--dim);margin-bottom:6px">You typed: <b>${String(session.typed||'—').replace(/</g,'&lt;')}</b> · <span style="color:${vd[1]};font-weight:700">${vd[0]}</span></div>
+        ${w.type==='noun'?`<div class="fc-art">${art}</div>`:''}
+        <div class="fc-word">${germanOf(w)}</div>
+        <button class="speak-btn" onclick="speakWord(WORD_BY_ID['${item.id}'],event)" aria-label="Hear pronunciation">🔊</button>
+        <div class="fc-en" style="margin-top:8px">${w.en}</div>
+        ${w.ex?`<div class="fc-ex">„${w.ex}"</div>`:''}
+      </div>
+      <div class="rate-row" style="margin-top:12px">
+        <button class="rate-btn rate-again" onclick="doRate('again')">↻ Review again<br><span style="font-weight:500;font-size:12px;opacity:.8">in 1 day</span></button>
+        <button class="rate-btn rate-got" onclick="doRate('got')">✓ Got it<br><span style="font-weight:500;font-size:12px;opacity:.8">next interval</span></button>
+      </div>`;
+  }
 }
 function flipStudy(){
   const fc=document.getElementById('fc');
@@ -6766,7 +6806,7 @@ function flipStudy(){
     document.getElementById('rateRow').innerHTML=`
       <div class="sub" style="text-align:center;margin-bottom:8px">Did you remember it?</div>
       <div class="rate-row">
-        <button class="rate-btn rate-again" onclick="doRate('again')">↻ Review again<br><span style="font-weight:500;font-size:12px;opacity:.8">in ${INTERVALS[0]} days</span></button>
+        <button class="rate-btn rate-again" onclick="doRate('again')">↻ Review again<br><span style="font-weight:500;font-size:12px;opacity:.8">in 1 day</span></button>
         <button class="rate-btn rate-got" onclick="doRate('got')">✓ Got it<br><span style="font-weight:500;font-size:12px;opacity:.8">next interval</span></button>
       </div>`;
   }
@@ -6774,9 +6814,16 @@ function flipStudy(){
 function doRate(result){
   const item=session.queue[session.i];
   rateWord(item.id, result);
+  session.answered=false; session.typed=''; session.verdict=null;
   session.i++;
   renderStudy();
 }
+/* ===== Study styles: Type & Listen (Batch 2) ===== */
+function setStudyStyle(st){ const s=DB.get(); s.settings.studyStyle=st; DB.save(); if(session){ session.answered=false; session.typed=''; session.verdict=null; } renderStudy(); }
+function normalizeAnswer(s){ return String(s||'').toLowerCase().trim().replace(/^(der|die|das)\s+/,'').replace(/[.!?,;:"'„"]/g,'').replace(/\s+/g,' ').trim(); }
+function levenshtein(a,b){ const m=a.length,n=b.length; if(!m)return n; if(!n)return m; const d=Array.from({length:m+1},(_,i)=>{const r=Array(n+1).fill(0); r[0]=i; return r;}); for(let j=1;j<=n;j++)d[0][j]=j; for(let i=1;i<=m;i++)for(let j=1;j<=n;j++){ const c=a[i-1]===b[j-1]?0:1; d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+c);} return d[m][n]; }
+function gradeTyped(input,w){ const a=normalizeAnswer(input), b=normalizeAnswer(germanOf(w)); if(!a) return 'wrong'; if(a===b) return 'correct'; if(b.length>=3 && levenshtein(a,b)<=1) return 'almost'; return 'wrong'; }
+function checkTyped(){ const inp=document.getElementById('typeAns'); const val=inp?inp.value:''; const item=session.queue[session.i]; const w=WORD_BY_ID[item.id]; session.typed=val; session.verdict=gradeTyped(val,w); session.answered=true; renderStudy(); }
 
 /* ===== HISTORY ===== */
 let calMonth=null; // Date pointing to first of displayed month
@@ -7372,7 +7419,7 @@ function renderSettings(){
       </div>
     </div>
     <div class="set-label">Spaced repetition</div>
-    <div class="card-box"><div class="opt-desc">Words you mark <b>Review again</b> come back after ${INTERVALS.join(', ')} days — the interval grows each time you get them right, so memory strengthens over time.</div></div>
+    <div class="card-box"><div class="opt-desc">Each word gets its own review schedule: when you remember it the gap until the next review stretches (by a per-word "ease"), and when you slip it shrinks back — so easy words return rarely and tricky ones come back soon. Study as Flip, Type, or Listen — all three feed the same schedule.</div></div>
     <div class="set-label">Storage</div>
     <div class="card-box">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
