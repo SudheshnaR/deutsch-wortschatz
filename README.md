@@ -4,12 +4,15 @@
 
 | I want to… | See |
 |---|---|
-| Put this on GitHub | `GITHUB_SETUP_GUIDE.md` (run `push-to-github.bat`) |
+| Install on an iPhone (step by step) | [`docs/Deutsch_Wortschatz_iPhone_Install_Guide.pdf`](docs/Deutsch_Wortschatz_iPhone_Install_Guide.pdf) |
+| Read the product spec | [`docs/PRD.md`](docs/PRD.md) |
+| Read the technical design | [`docs/TDD.md`](docs/TDD.md) |
+| Read the test report (70/70 passing) | [`docs/TEST_REPORT.md`](docs/TEST_REPORT.md) |
+| Run the automated tests | `npm test` |
 | Build & test on Android (Windows) | `BUILD_GUIDE_WINDOWS.md` → run `build-android.bat` |
-| Build iOS (cloud, no Mac needed) | `codemagic.yaml` + `BUILD_GUIDE_WINDOWS.md` Part 2 |
-| Read the product spec | `docs/Deutsch_Wortschatz_PRD.docx` |
-| Read the technical design | `docs/Deutsch_Wortschatz_TDD.docx` |
-| Read the test report | `docs/Deutsch_Wortschatz_Test_Report.docx` |
+| Build iOS (cloud, no Mac needed) | `codemagic.yaml` |
+
+> Docs are Markdown now (they render on GitHub). The older `.docx` versions in `docs/` are superseded by `PRD.md`, `TDD.md`, and `TEST_REPORT.md`.
 
 ---
 

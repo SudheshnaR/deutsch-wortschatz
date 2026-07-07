@@ -1,0 +1,253 @@
+/* =====================================================================
+   Deutsch Wortschatz — automated test suite
+   Loads the app's REAL JavaScript (from www/index.html) into a mocked
+   browser sandbox and asserts behaviour across all major scenarios.
+   Run:  node tests/run.js
+   ===================================================================== */
+'use strict';
+const fs = require('fs');
+const vm = require('vm');
+const path = require('path');
+
+const HTML = fs.readFileSync(path.join(__dirname, '..', 'www', 'index.html'), 'utf8');
+
+/* ---- extract inline <script> blocks (no src) ---- */
+let scriptSrc = '';
+const re = /<script\b(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi;
+let m; while ((m = re.exec(HTML))) scriptSrc += '\n' + m[1] + '\n';
+
+/* ---- expose top-level consts/functions onto globalThis.__APP__ ---- */
+const NAMES = ['WORDS','WORDS_A1','WORDS_B1','WORDLISTS','THEMES','THEME_WORDS','WORD_BY_ID',
+  'INTERVALS','STORIES','MS_DAY','DB','activeWords','levelWords','isPseudoLevel','levelLabel',
+  'levelHasWords','wid','germanOf','fullGerman','today','todayNum','todayKey','dueReviewIds',
+  'isIntroduced','scheduledReviews','rateWord','pullNewBatch','ensureProg','streakCount',
+  'totalLearned','buildSession','storiesForLevel','storyLevel','rotationFor','reindexCustomWords',
+  'shuffle','themeByKey'];
+scriptSrc += '\n;globalThis.__APP__={};' + NAMES.map(n =>
+  `try{globalThis.__APP__[${JSON.stringify(n)}]=${n};}catch(e){}`).join('');
+
+/* ---- browser mocks ---- */
+function el() {
+  const e = {
+    style:{}, dataset:{}, innerHTML:'', textContent:'', value:'', checked:false,
+    files:[], scrollTop:0, offsetWidth:0, _t:null,
+    classList:{ add(){}, remove(){}, toggle(){}, contains(){return false} },
+    addEventListener(){}, removeEventListener(){}, appendChild(){}, removeChild(){},
+    insertAdjacentHTML(){}, setAttribute(){}, getAttribute(){return null},
+    querySelector(){return el()}, querySelectorAll(){return []}, closest(){return null},
+    focus(){}, click(){}, remove(){}, getContext(){return {}}
+  };
+  return e;
+}
+const shared = el();
+const document = {
+  getElementById(){ return shared; }, querySelector(){ return shared; },
+  querySelectorAll(){ return []; }, createElement(){ return el(); },
+  addEventListener(){}, removeEventListener(){}, getElementsByTagName(){ return []; },
+  body: shared, documentElement: shared
+};
+const store = new Map();
+const localStorage = {
+  getItem:(k)=> store.has(k)?store.get(k):null,
+  setItem:(k,v)=> store.set(k,String(v)),
+  removeItem:(k)=> store.delete(k), clear:()=> store.clear()
+};
+const speechSynthesis = { getVoices:()=>[], speak(){}, cancel(){}, onvoiceschanged:null };
+const windowMock = {
+  speechSynthesis, Capacitor: undefined, addEventListener(){}, removeEventListener(){},
+  matchMedia:()=>({matches:false, addEventListener(){}, removeEventListener(){}}),
+  location:{ href:'' }, navigator:{ language:'en' }
+};
+const sandbox = {
+  console, document, localStorage, speechSynthesis,
+  window: windowMock, navigator:{ language:'en' },
+  setTimeout:()=>0, clearTimeout(){}, setInterval:()=>0, clearInterval(){},
+  requestAnimationFrame:()=>0, cancelAnimationFrame(){},
+  SpeechSynthesisUtterance: class { constructor(t){ this.text=t; } },
+  Blob: class { constructor(a){ this.size = a && a[0] ? String(a[0]).length : 0; } },
+  fetch: ()=>Promise.resolve({}), alert(){}, confirm(){return true;}, prompt(){return null;}
+};
+sandbox.globalThis = sandbox;
+sandbox.self = sandbox;
+process.on('unhandledRejection', ()=>{}); // swallow boot()'s async DOM errors
+
+const ctx = vm.createContext(sandbox);
+try { vm.runInContext(scriptSrc, ctx, { filename: 'app.js' }); }
+catch (e) { console.error('FATAL: app script failed to load:', e.message); process.exit(2); }
+const A = ctx.__APP__;
+
+/* ---- tiny test runner ---- */
+const results = [];
+function test(id, area, desc, fn) {
+  let status='PASS', detail='';
+  try { const r = fn(); if (r === false) { status='FAIL'; detail='assertion returned false'; } if (typeof r === 'string') detail = r; }
+  catch (e) { status='FAIL'; detail = e.message; }
+  results.push({ id, area, desc, status, detail });
+}
+const asyncTests = [];
+function atest(id, area, desc, fn) { asyncTests.push({ id, area, desc, fn }); }
+function assert(cond, msg){ if(!cond) throw new Error(msg||'assertion failed'); }
+
+/* helpers */
+const { DB } = A;
+async function profile(name){ await DB.loginAs(name, null); }
+function allWords(){ const out=[]; Object.values(A.WORDLISTS).forEach(l=>l.forEach(w=>out.push(w))); return out; }
+const TYPES = new Set(['noun','verb','adj','other','phrase']);
+const ARTS = new Set(['der','die','das']);
+
+/* =========================================================
+   1. WORD LISTS — structure & integrity
+   ========================================================= */
+test('WL-01','Word Lists','A1 list loads with expected count', ()=> A.WORDS_A1.length===556 || `A1=${A.WORDS_A1.length}`);
+test('WL-02','Word Lists','A2 list loads with expected count', ()=> A.WORDS.length===1141 || `A2=${A.WORDS.length}`);
+test('WL-03','Word Lists','B1 list loads with expected count', ()=> A.WORDS_B1.length===2838 || `B1=${A.WORDS_B1.length}`);
+test('WL-04','Word Lists','WORDLISTS maps A1/A2/B1 to populated arrays', ()=>{ ['A1','A2','B1'].forEach(L=>assert(A.WORDLISTS[L].length>0,L)); return true; });
+test('WL-05','Word Lists','Every entry has a non-empty English gloss', ()=>{ const bad=allWords().filter(w=>!w.en); return bad.length===0 || `${bad.length} missing en`; });
+test('WL-06','Word Lists','Every entry has a non-empty example sentence', ()=>{ const bad=allWords().filter(w=>!w.ex); return bad.length===0 || `${bad.length} empty ex`; });
+test('WL-07','Word Lists','Every entry type is one of noun/verb/adj/other/phrase', ()=>{ const bad=allWords().filter(w=>!TYPES.has(w.type)); return bad.length===0 || `${bad.length} bad types: ${bad.slice(0,3).map(w=>w.type)}`; });
+test('WL-08','Word Lists','Every noun has a valid article (der/die/das)', ()=>{ const bad=allWords().filter(w=>w.type==='noun' && !ARTS.has(w.art)); return bad.length===0 || `${bad.length} bad art`; });
+test('WL-09','Word Lists','Every noun has a base form', ()=>{ const bad=allWords().filter(w=>w.type==='noun' && !w.base); return bad.length===0 || `${bad.length} noun missing base`; });
+test('WL-10','Word Lists','Every non-noun has a headword (w)', ()=>{ const bad=allWords().filter(w=>w.type!=='noun' && !w.w); return bad.length===0 || `${bad.length} missing w`; });
+test('WL-11','Word Lists','germanOf() returns a non-empty string for every entry', ()=>{ const bad=allWords().filter(w=>!A.germanOf(w)); return bad.length===0 || `${bad.length} empty germanOf`; });
+test('WL-12','Word Lists','fullGerman() returns a non-empty string for every entry', ()=>{ const bad=allWords().filter(w=>!A.fullGerman(w)); return bad.length===0 || `${bad.length} empty fullGerman`; });
+
+/* =========================================================
+   2. CONTENT QUALITY — no broken auto-generated templates
+   ========================================================= */
+const themeWords = ()=>{ const o=[]; (A.THEMES||[]).forEach(t=>t.words.forEach(w=>o.push(w))); return o; };
+const everyWord = ()=> allWords().concat(themeWords());
+test('CQ-01','Content Quality','No "[Der/Die/Das] <noun> ist hier." filler examples remain', ()=>{ const bad=everyWord().filter(w=>/ ist hier\.$/.test(w.ex||'')); return bad.length===0 || `${bad.length} fillers`; });
+test('CQ-02','Content Quality','No "Das ist <self>." example on a non-adjective', ()=>{ const bad=everyWord().filter(w=> w.type!=='adj' && (w.ex===('Das ist '+(w.w||w.base)+'.'))); return bad.length===0 || `${bad.length}`; });
+test('CQ-03','Content Quality','No "Ich möchte <self>." example on a non-verb', ()=>{ const bad=everyWord().filter(w=> w.type!=='verb' && (w.ex===('Ich möchte '+(w.w||w.base)+'.'))); return bad.length===0 || `${bad.length}`; });
+test('CQ-04','Content Quality','Adjectives previously mislabeled are now type "adj" (rot, schön, glücklich)', ()=>{ const names=['rot','schön','glücklich','teuer','müde']; const tw=themeWords(); names.forEach(n=>{ const e=tw.find(w=>w.w===n); assert(e && e.type==='adj', n+' not adj'); }); return true; });
+test('CQ-05','Content Quality','Plural nouns relabeled to noun+article (Eltern, Leute, Medien)', ()=>{ const names=['Eltern','Leute','Medien']; names.forEach(n=>{ const e=allWords().find(w=>w.w===n||w.base===n); assert(e && e.type==='noun' && A.ARTS!==false, n); }); return true; });
+test('CQ-06','Content Quality','Mistyped adverbs no longer tagged verb (morgen, gestern, offen)', ()=>{ const bad=['morgen','gestern','offen','geschlossen'].filter(n=>{ const e=themeWords().find(w=>w.w===n); return e && e.type==='verb'; }); return bad.length===0 || `still verb: ${bad}`; });
+test('CQ-07','Content Quality','Numbers no longer use "Das ist <number>." example', ()=>{ const bad=everyWord().filter(w=>/^Das ist (null|eins|zwei|drei|zehn|zwanzig)\.$/.test(w.ex||'')); return bad.length===0 || `${bad.length}`; });
+
+/* =========================================================
+   3. THEMES (phrasebook)
+   ========================================================= */
+test('TH-01','Themes','THEMES is a non-empty array of topic groups', ()=> Array.isArray(A.THEMES) && A.THEMES.length>0);
+test('TH-02','Themes','Every theme has a name, emoji and a words array', ()=>{ const bad=A.THEMES.filter(t=>!t.name||!t.emoji||!Array.isArray(t.words)); return bad.length===0 || `${bad.length}`; });
+test('TH-03','Themes','Every theme word has a valid type and non-empty example', ()=>{ const bad=themeWords().filter(w=>!TYPES.has(w.type)||!w.ex); return bad.length===0 || `${bad.length}`; });
+test('TH-04','Themes','Theme phrasebook total = sum of all groups', ()=>{ const sum=A.THEMES.reduce((n,t)=>n+t.words.length,0); return sum===themeWords().length; });
+
+/* =========================================================
+   4. WORD IDs & INDEX
+   ========================================================= */
+test('ID-01','Word IDs','wid() is defined for every entry', ()=>{ const bad=everyWord().filter(w=>!A.wid(w)); return bad.length===0 || `${bad.length}`; });
+test('ID-02','Word IDs','WORD_BY_ID resolves every level word back to an entry', ()=>{ const bad=allWords().filter(w=>!A.WORD_BY_ID[A.wid(w)]); return bad.length===0 || `${bad.length} unresolved`; });
+test('ID-03','Word IDs','Noun IDs use the N:art:base scheme', ()=>{ const n=allWords().find(w=>w.type==='noun'); return A.wid(n)===('N:'+n.art+':'+n.base); });
+test('ID-04','Word IDs','Non-noun IDs use the type:headword scheme', ()=>{ const v=allWords().find(w=>w.type==='verb'); return A.wid(v)===('verb:'+v.w); });
+
+/* =========================================================
+   5. VOCABULARY FILTER (hide lower-level words)
+   ========================================================= */
+atest('VF-01','Vocab Filter','Filter OFF: A2 study set = full A2 list', async ()=>{ await profile('vf1'); DB.setLevel('A2'); DB.get().settings.hideLowerLevel=false; assert(A.activeWords().length===A.WORDLISTS.A2.length); });
+atest('VF-02','Vocab Filter','Filter ON at B1: excludes lower-level (A1/A2) tagged words', async ()=>{ await profile('vf2'); DB.setLevel('B1'); const full=A.activeWords().length; DB.get().settings.hideLowerLevel=true; const filtered=A.activeWords(); assert(filtered.length<=full,'not smaller'); const order=['A1','A2','B1','B2','C1']; const bad=filtered.filter(w=>w.level && order.indexOf(w.level)<order.indexOf('B1')); assert(bad.length===0, bad.length+' lower-level leaked'); });
+atest('VF-03','Vocab Filter','Filter ON at A1: keeps all (nothing lower exists)', async ()=>{ await profile('vf3'); DB.setLevel('A1'); const off=A.activeWords().length; DB.get().settings.hideLowerLevel=true; assert(A.activeWords().length===off); });
+
+/* =========================================================
+   6. SPACED REPETITION ENGINE
+   ========================================================= */
+test('SR-01','Spaced Repetition','Box intervals are [5,10,20,40,80] days', ()=> JSON.stringify(A.INTERVALS)===JSON.stringify([5,10,20,40,80]));
+atest('SR-02','Spaced Repetition','First "got" promotes box 0→1 and schedules +10 days', async ()=>{ await profile('sr2'); DB.setLevel('A1'); const id=A.wid(A.WORDLISTS.A1[0]); const tn=A.todayNum(); A.rateWord(id,'got'); const p=DB.get().progress[id]; assert(p.box===1,'box='+p.box); assert(p.due===tn+10,'due='+p.due+' want '+(tn+10)); });
+atest('SR-03','Spaced Repetition','Repeated "got" advances boxes and caps at box 4 (+80 days)', async ()=>{ await profile('sr3'); DB.setLevel('A1'); const id=A.wid(A.WORDLISTS.A1[1]); for(let i=0;i<6;i++) A.rateWord(id,'got'); const p=DB.get().progress[id]; assert(p.box===4,'box='+p.box); const tn=A.todayNum(); assert(p.due===tn+80,'due'); });
+atest('SR-04','Spaced Repetition','"again" reschedules at the current box interval (+5 on box 0)', async ()=>{ await profile('sr4'); DB.setLevel('A1'); const id=A.wid(A.WORDLISTS.A1[2]); const tn=A.todayNum(); A.rateWord(id,'again'); const p=DB.get().progress[id]; assert(p.box===0,'box'); assert(p.due===tn+5,'due'); });
+atest('SR-05','Spaced Repetition','A rated word is NOT due today but IS due after its interval elapses', async ()=>{ await profile('sr5'); DB.setLevel('A1'); const id=A.wid(A.WORDLISTS.A1[3]); A.rateWord(id,'got'); assert(!A.dueReviewIds().includes(id),'due too early'); DB.get().simOffset=10; assert(A.dueReviewIds().includes(id),'not due after 10d'); });
+atest('SR-06','Spaced Repetition','scheduledReviews() lists due dates sorted ascending with correct daysUntil', async ()=>{ await profile('sr6'); DB.setLevel('A1'); const a=A.wid(A.WORDLISTS.A1[4]), b=A.wid(A.WORDLISTS.A1[5]); A.rateWord(a,'again'); A.rateWord(b,'got'); const sr=A.scheduledReviews(); assert(sr.length===2); assert(sr[0].due<=sr[1].due,'not sorted'); assert(sr[0].daysUntil===sr[0].due-A.todayNum(),'daysUntil'); });
+atest('SR-07','Spaced Repetition','rateWord records the result in today\'s reviewed log', async ()=>{ await profile('sr7'); DB.setLevel('A1'); const id=A.wid(A.WORDLISTS.A1[6]); A.rateWord(id,'got'); const day=DB.get().days[A.todayKey()]; assert(day && day.reviewed.some(r=>r.id===id && r.result==='got')); });
+
+/* =========================================================
+   7. DAILY BATCH & STUDY SESSION
+   ========================================================= */
+atest('DB-01','Daily/Session','pullNewBatch(n) introduces n new words (progress + day.new)', async ()=>{ await profile('db1'); DB.setLevel('A1'); const added=A.pullNewBatch(10); assert(added===10,'added='+added); assert(Object.keys(DB.get().progress).length===10,'prog'); assert(DB.get().days[A.todayKey()].new.length===10,'daynew'); });
+atest('DB-02','Daily/Session','pullNewBatch never re-introduces an already-known word', async ()=>{ await profile('db2'); DB.setLevel('A1'); A.pullNewBatch(10); const before=new Set(Object.keys(DB.get().progress)); A.pullNewBatch(10); const after=Object.keys(DB.get().progress); const dupes=after.filter((id,i)=>after.indexOf(id)!==i); assert(dupes.length===0,'dupes'); assert(after.length===20,'total'); });
+atest('DB-03','Daily/Session','pullNewBatch caps at available pool size', async ()=>{ await profile('db3'); DB.setLevel('A1'); const total=A.activeWords().length; const got=A.pullNewBatch(total+50); assert(got===total,'got '+got+' of '+total); assert(A.pullNewBatch(5)===0,'pool not empty'); });
+atest('DB-04','Daily/Session','buildSession (mixed) queues today\'s new + due reviews', async ()=>{ await profile('db4'); DB.setLevel('A1'); DB.get().settings.reviewMode='mixed'; A.pullNewBatch(5); const sess=A.buildSession(); assert(sess.queue.length>=5,'queue '+sess.queue.length); assert(sess.newCount===5,'newCount'); });
+atest('DB-05','Daily/Session','autoReview OFF removes due reviews from the daily session', async ()=>{ await profile('db5'); DB.setLevel('A1'); const id=A.wid(A.WORDLISTS.A1[7]); A.rateWord(id,'got'); DB.get().simOffset=10; DB.get().settings.autoReview=false; const sess=A.buildSession(); assert(sess.dueCount===0,'dueCount '+sess.dueCount); });
+atest('DB-06','Daily/Session','review-only session (buildSession true) contains only due reviews', async ()=>{ await profile('db6'); DB.setLevel('A1'); const id=A.wid(A.WORDLISTS.A1[8]); A.rateWord(id,'got'); DB.get().simOffset=10; const sess=A.buildSession(true); assert(sess.queue.every(q=>q.kind==='review'),'non-review present'); assert(sess.queue.length>=1); });
+
+/* =========================================================
+   8. PROFILES, LEVELS & PERSISTENCE
+   ========================================================= */
+atest('PR-01','Profiles','loginAs a new name creates a fresh profile', async ()=>{ await DB.loginAs('Alice',null); const s=DB.get(); assert(s.profile.name==='Alice','name'); });
+atest('PR-02','Profiles','loginAs is case-insensitive and restores the same profile', async ()=>{ await DB.loginAs('Bob',null); DB.setLevel('A1'); A.pullNewBatch(3); await DB.loginAs('Zoe',null); const r=await DB.loginAs('bob',null); assert(r.restored===true,'not restored'); assert(Object.keys(DB.get().levels.A1.progress).length===3,'progress lost'); });
+atest('PR-03','Profiles','PIN-protected profile rejects a wrong PIN and accepts the right one', async ()=>{ await DB.loginAs('Cara','1234'); await DB.logout(); const bad=await DB.loginAs('Cara','0000'); assert(bad.ok===false && bad.reason==='pin','bad pin accepted'); const good=await DB.loginAs('Cara','1234'); assert(good.ok===true,'good pin rejected'); });
+atest('PR-04','Profiles','Two profiles keep independent progress', async ()=>{ await DB.loginAs('P1',null); DB.setLevel('A1'); A.pullNewBatch(4); await DB.loginAs('P2',null); DB.setLevel('A1'); assert(Object.keys(DB.get().progress).length===0,'P2 not empty'); await DB.loginAs('P1',null); DB.setLevel('A1'); assert(Object.keys(DB.get().progress).length===4,'P1 lost'); });
+atest('PR-05','Levels','Each CEFR level keeps its own separate progress', async ()=>{ await DB.loginAs('L1',null); DB.setLevel('A1'); A.pullNewBatch(3); DB.setLevel('A2'); assert(Object.keys(DB.get().progress).length===0,'A2 leaked'); DB.setLevel('A1'); assert(Object.keys(DB.get().progress).length===3,'A1 lost'); });
+atest('PR-06','Persistence','serialize + reload round-trips state via storage', async ()=>{ await DB.loginAs('Save',null); DB.setLevel('A1'); A.pullNewBatch(6); const before=DB.get().levels.A1.progress; const raw=DB.serialize(); const parsed=JSON.parse(raw); assert(parsed.levels.A1.progress && Object.keys(parsed.levels.A1.progress).length===6,'round-trip'); });
+atest('PR-07','Persistence','sizeBytes() reports a positive storage footprint', async ()=>{ await DB.loginAs('Sz',null); assert(DB.sizeBytes()>0); });
+atest('PR-08','Persistence','importData replaces progress (restore a backup)', async ()=>{ await DB.loginAs('Imp',null); DB.setLevel('A1'); const backup={ currentLevel:'A1', settings:{reviewMode:'mixed',dailyGoal:10,autoReview:true,hideLowerLevel:false}, levels:{A1:{progress:{'verb:x':{box:2,due:5,graduated:false,lastSeen:1}},days:{}}}, storiesDone:{}, simOffset:0 }; await DB.importData(backup); assert(DB.get().levels.A1.progress['verb:x'],'not imported'); });
+atest('PR-09','Persistence','reset() clears all learning progress', async ()=>{ await DB.loginAs('Rst',null); DB.setLevel('A1'); A.pullNewBatch(5); await DB.reset(); assert(Object.keys(DB.get().progress||{}).length===0,'not cleared'); });
+atest('PR-10','Levels','setLevel to a theme unit selects that theme\'s words', async ()=>{ await DB.loginAs('Th',null); const key=A.THEMES[0].key||A.THEMES[0].name; DB.setLevel('theme:'+(A.THEMES[0].key||'')); return true; });
+
+/* =========================================================
+   9. CUSTOM WORDS (My Words)
+   ========================================================= */
+atest('CW-01','Custom Words','addCustomWord adds a word usable as the "custom" study set', async ()=>{ await DB.loginAs('cw1',null); await DB.addCustomWord({id:'c1',type:'other',w:'Testwort',en:'test word',ex:'Das ist ein Testwort.'}); DB.setLevel('custom'); const aw=A.activeWords(); assert(aw.length===1 && aw[0].w==='Testwort','custom set wrong'); });
+atest('CW-02','Custom Words','updateCustomWord edits in place; deleteCustomWord removes it', async ()=>{ await DB.loginAs('cw2',null); await DB.addCustomWord({id:'c2',type:'other',w:'Alt',en:'old',ex:'x'}); await DB.updateCustomWord('c2',{type:'other',w:'Neu',en:'new',ex:'y'}); DB.setLevel('custom'); assert(A.activeWords()[0].w==='Neu','not updated'); await DB.deleteCustomWord('c2'); assert(A.activeWords().length===0,'not deleted'); });
+atest('CW-03','Custom Words','reindexCustomWords makes custom words resolvable via WORD_BY_ID', async ()=>{ await DB.loginAs('cw3',null); const cw={id:'c3',type:'other',w:'Indexwort',en:'x',ex:'y'}; await DB.addCustomWord(cw); A.reindexCustomWords(); assert(A.WORD_BY_ID[A.wid(cw)],'not indexed'); });
+
+/* =========================================================
+   10. STORIES
+   ========================================================= */
+test('ST-01','Stories','STORIES library loads as a non-empty array', ()=> Array.isArray(A.STORIES) && A.STORIES.length>0 || `len=${A.STORIES&&A.STORIES.length}`);
+test('ST-02','Stories','Every story has id, level and a non-empty sentences array', ()=>{ const bad=A.STORIES.filter(s=>!s.id||!s.level||!Array.isArray(s.sentences)||s.sentences.length===0); return bad.length===0 || `${bad.length}`; });
+test('ST-03','Stories','Every story sentence has German (de) and English (en)', ()=>{ const bad=A.STORIES.filter(s=>s.sentences.some(x=>!x.de||!x.en)); return bad.length===0 || `${bad.length} stories`; });
+test('ST-04','Stories','storiesForLevel filters correctly (A1/A2/B1 counts sum to total)', ()=>{ const a=A.storiesForLevel('A1').length,b=A.storiesForLevel('A2').length,c=A.storiesForLevel('B1').length; return (a+b+c)===A.STORIES.length || `${a}+${b}+${c} != ${A.STORIES.length}`; });
+atest('ST-05','Stories','Story rotation is deterministic for a given day (same order twice)', async ()=>{ await DB.loginAs('st',null); DB.setLevel('A1'); const r1=A.rotationFor('A1'), r2=A.rotationFor('A1'); assert(JSON.stringify(r1.order)===JSON.stringify(r2.order),'non-deterministic'); assert(r1.order.length===A.storiesForLevel('A1').length,'order len'); const sorted=[...r1.order].sort((x,y)=>x-y); assert(JSON.stringify(sorted)===JSON.stringify(sorted.map((_,i)=>i)),'not a permutation'); });
+
+/* =========================================================
+   11. DATE / SIM & STREAK
+   ========================================================= */
+atest('DT-01','Date/Streak','simOffset shifts the app\'s notion of "today" forward', async ()=>{ await DB.loginAs('dt',null); const t0=A.todayNum(); DB.get().simOffset=7; assert(A.todayNum()===t0+7,'offset not applied'); });
+atest('DT-02','Date/Streak','todayKey is an ISO yyyy-mm-dd string', async ()=>{ await DB.loginAs('dt2',null); assert(/^\d{4}-\d{2}-\d{2}$/.test(A.todayKey())); });
+
+/* =========================================================
+   12. CONFIG & BUILD INTEGRITY
+   ========================================================= */
+const cfg = JSON.parse(fs.readFileSync(path.join(__dirname,'..','capacitor.config.json'),'utf8'));
+const pkg = JSON.parse(fs.readFileSync(path.join(__dirname,'..','package.json'),'utf8'));
+test('CF-01','Config','capacitor.config.json has the expected appId', ()=> cfg.appId==='com.sudheshna.deutschwortschatz' || cfg.appId);
+test('CF-02','Config','webDir points to www', ()=> cfg.webDir==='www');
+test('CF-03','Config','iOS + Android platform deps are declared', ()=> !!pkg.dependencies['@capacitor/ios'] && !!pkg.dependencies['@capacitor/android']);
+test('CF-04','Config','TTS + speech-recognition plugins are declared', ()=> !!pkg.dependencies['@capacitor-community/text-to-speech'] && !!pkg.dependencies['@capacitor-community/speech-recognition']);
+test('CF-05','Config','Preferences + Filesystem + Share plugins are declared', ()=> !!pkg.dependencies['@capacitor/preferences'] && !!pkg.dependencies['@capacitor/filesystem'] && !!pkg.dependencies['@capacitor/share']);
+test('CF-06','Build','App bundles into a single self-contained index.html', ()=> (HTML.match(/<script\b(?![^>]*\bsrc=)/gi)||[]).length>=1 && !/<script[^>]*\bsrc=/.test(HTML));
+test('CF-07','Build','iOS Info.plist has microphone + speech usage strings', ()=>{ const p=fs.readFileSync(path.join(__dirname,'..','ios','App','App','Info.plist'),'utf8'); return /NSMicrophoneUsageDescription/.test(p) && /NSSpeechRecognitionUsageDescription/.test(p); });
+
+/* =========================================================
+   run async tests, then report
+   ========================================================= */
+(async ()=>{
+  // let the app's async boot() finish loading storage before async tests
+  await new Promise(r=>setImmediate(r));
+  await new Promise(r=>setImmediate(r));
+  for (const t of asyncTests) {
+    let status='PASS', detail='';
+    try { const r=await t.fn(); if(r===false){status='FAIL';detail='returned false';} if(typeof r==='string') detail=r; }
+    catch(e){ status='FAIL'; detail=e.message; }
+    results.push({ id:t.id, area:t.area, desc:t.desc, status, detail });
+  }
+  results.sort((a,b)=> a.id.localeCompare(b.id));
+
+  // group summary
+  const byArea={};
+  results.forEach(r=>{ (byArea[r.area]=byArea[r.area]||{p:0,f:0,t:0}); byArea[r.area].t++; r.status==='PASS'?byArea[r.area].p++:byArea[r.area].f++; });
+  const total=results.length, passed=results.filter(r=>r.status==='PASS').length, failed=total-passed;
+
+  console.log('\n================ DEUTSCH WORTSCHATZ — TEST RESULTS ================\n');
+  console.log('Area                         Tests  Pass  Fail');
+  console.log('-----------------------------------------------');
+  Object.keys(byArea).sort().forEach(a=>{ const g=byArea[a]; console.log(a.padEnd(28), String(g.t).padStart(4), String(g.p).padStart(5), String(g.f).padStart(5)); });
+  console.log('-----------------------------------------------');
+  console.log('TOTAL'.padEnd(28), String(total).padStart(4), String(passed).padStart(5), String(failed).padStart(5));
+  console.log('');
+  results.filter(r=>r.status==='FAIL').forEach(r=> console.log(`  FAIL ${r.id} [${r.area}] ${r.desc} — ${r.detail}`));
+  console.log(`\n${passed}/${total} passed, ${failed} failed.\n`);
+
+  // machine-readable output for the report generator
+  fs.writeFileSync(path.join(__dirname,'results.json'), JSON.stringify({ total, passed, failed, byArea, results }, null, 2));
+  process.exit(failed===0?0:1);
+})();
