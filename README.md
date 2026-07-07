@@ -13,7 +13,7 @@
 | CI (tests + Android build + web deploy) | GitHub Actions — `.github/workflows/` |
 | Build & test on Android (Windows) | `BUILD_GUIDE_WINDOWS.md` → run `build-android.bat` |
 
-> Docs are Markdown now (they render on GitHub). The older `.docx` versions in `docs/` are superseded by `PRD.md`, `TDD.md`, and `TEST_REPORT.md`.
+> All docs are Markdown (they render on GitHub): [`PRD.md`](docs/PRD.md), [`TDD.md`](docs/TDD.md), [`TEST_REPORT.md`](docs/TEST_REPORT.md), and [`CONTENT_AUDIT.md`](docs/CONTENT_AUDIT.md).
 
 ---
 

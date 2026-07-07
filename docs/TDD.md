@@ -3,7 +3,7 @@
 **Architecture, data model & build pipeline**
 **Version 1.2 · 2026-07-07**
 
-> Markdown source of record (supersedes `Deutsch_Wortschatz_TDD.docx`). Companions: [`PRD.md`](PRD.md), [`TEST_REPORT.md`](TEST_REPORT.md), [`CONTENT_AUDIT.md`](CONTENT_AUDIT.md).
+> Markdown source of record. Companions: [`PRD.md`](PRD.md), [`TEST_REPORT.md`](TEST_REPORT.md), [`CONTENT_AUDIT.md`](CONTENT_AUDIT.md).
 >
 > **Changes in 1.2:** light/system theme via CSS design tokens; Flip/Type/Listen study modes; SM-2-lite spaced repetition (with box→ease migration); daily local notifications; automatic on-device backup; Home activity heatmap; accessibility pass; content-audit tool; GitHub Actions CI. The QA "test-date" bar was removed (the underlying `simOffset` hook remains for tests).
 
