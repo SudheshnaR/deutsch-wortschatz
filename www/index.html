@@ -6556,6 +6556,8 @@ function speak(text,ev){
 }
 function speakWord(w,ev){ speak(germanOf(w),ev); }
 function dictccUrl(w){ return 'https://www.dict.cc/?s='+encodeURIComponent(germanOf(w)||''); }
+function browserPlugin(){ return (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser) || null; }
+function openDictcc(url, ev){ if(ev){ try{ ev.preventDefault(); ev.stopPropagation(); }catch(e){} } const B=browserPlugin(); if(B){ B.open({ url:url, presentationStyle:'popover' }).catch(()=>{ try{ window.open(url,'_blank'); }catch(e){} }); } else { try{ window.open(url,'_blank'); }catch(e){} } }
 function speakEx(id,ev){ const w=WORD_BY_ID[id]; if(w) speak(w.ex,ev); }
 
 /* counts */
@@ -6750,7 +6752,7 @@ function renderStudy(){
           <div class="fc-center">
             <div class="fc-en">${w.en}</div>
             ${w.ex?`<div class="fc-ex">„${w.ex}"</div><button class="speak-btn" onclick="speakEx('${item.id}',event)" aria-label="Hear example">🔊 example</button>`:''}
-            <a class="dictcc-link" style="margin-top:10px" href="${dictccUrl(w)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">🔎 dict.cc ↗</a>
+            <a class="dictcc-link" style="margin-top:10px" href="${dictccUrl(w)}" onclick="openDictcc('${dictccUrl(w)}',event)">🔎 dict.cc ↗</a>
           </div>
         </div>
       </div>
@@ -6938,6 +6940,7 @@ function renderThemeList(){
         <span class="pos">${w.type}</span></div></div>
       <div class="wl-en">${w.en}</div>
       ${w.ex?`<div class="wl-ex">${w.ex}</div>`:''}
+      <div style="margin-top:8px"><a class="dictcc-link" href="${dictccUrl(w)}" onclick="openDictcc('${dictccUrl(w)}',event)">🔎 dict.cc ↗</a></div>
     </div>`;
   }).join('') || '<div class="empty">No matches.</div>';
 }
@@ -7095,7 +7098,7 @@ function renderWordList(){
         <div style="display:flex;align-items:center;gap:8px"><button class="speak-btn speak-sm" onclick="speakWord(WORD_BY_ID['${id}'],event)" aria-label="Hear">🔊</button><span class="pill ${w.type}">${w.type}</span></div></div>
       <div class="wl-en">${w.en}${w.type==='noun'&&w.pl?' · pl. '+w.pl:''}</div>
       ${w.ex?`<div class="wl-ex">„${w.ex}"</div>`:''}
-      <div style="margin-top:8px"><a class="dictcc-link" href="${dictccUrl(w)}" target="_blank" rel="noopener noreferrer">🔎 dict.cc ↗</a></div>
+      <div style="margin-top:8px"><a class="dictcc-link" href="${dictccUrl(w)}" onclick="openDictcc('${dictccUrl(w)}',event)">🔎 dict.cc ↗</a></div>
     </div>`;
   }).join('')||'<div class="empty">No words found.</div>';
 }
@@ -7110,6 +7113,7 @@ function reviewWordRow(id, sub){
       <div style="display:flex;align-items:center;gap:8px"><button class="speak-btn speak-sm" onclick="speakWord(WORD_BY_ID['${id}'],event)" aria-label="Hear">🔊</button><span class="pill ${w.type}">${w.type}</span></div></div>
     <div class="wl-en">${w.en}</div>
     ${sub?`<div class="tagrow"><span class="tag rev">${sub}</span></div>`:''}
+    <div style="margin-top:8px"><a class="dictcc-link" href="${dictccUrl(w)}" onclick="openDictcc('${dictccUrl(w)}',event)">🔎 dict.cc ↗</a></div>
   </div>`;
 }
 function renderReview(){
