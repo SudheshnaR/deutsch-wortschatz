@@ -54,6 +54,8 @@ nav button.active{color:var(--accent)}
 .pill.other{background:rgba(255,126,168,.16);color:var(--other)}
 .pill.phrase{background:rgba(111,179,255,.16);color:#6fb3ff}
 .pill.prep{background:rgba(242,153,74,.18);color:#f2994a}
+.dictcc-link{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--dim);text-decoration:none;border:1px solid var(--line);border-radius:8px;padding:3px 9px}
+.dictcc-link:active{transform:scale(.97)}
 .art-tag{font-weight:700}.art-der{color:var(--der)}.art-die{color:var(--die)}.art-das{color:var(--das)}
 
 .card-box{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px;margin-bottom:14px}
@@ -6553,6 +6555,7 @@ function speak(text,ev){
   }catch(e){ toast('🔇 Audio unavailable'); }
 }
 function speakWord(w,ev){ speak(germanOf(w),ev); }
+function dictccUrl(w){ return 'https://www.dict.cc/?s='+encodeURIComponent(germanOf(w)||''); }
 function speakEx(id,ev){ const w=WORD_BY_ID[id]; if(w) speak(w.ex,ev); }
 
 /* counts */
@@ -6747,6 +6750,7 @@ function renderStudy(){
           <div class="fc-center">
             <div class="fc-en">${w.en}</div>
             ${w.ex?`<div class="fc-ex">„${w.ex}"</div><button class="speak-btn" onclick="speakEx('${item.id}',event)" aria-label="Hear example">🔊 example</button>`:''}
+            <a class="dictcc-link" style="margin-top:10px" href="${dictccUrl(w)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">🔎 dict.cc ↗</a>
           </div>
         </div>
       </div>
@@ -7091,6 +7095,7 @@ function renderWordList(){
         <div style="display:flex;align-items:center;gap:8px"><button class="speak-btn speak-sm" onclick="speakWord(WORD_BY_ID['${id}'],event)" aria-label="Hear">🔊</button><span class="pill ${w.type}">${w.type}</span></div></div>
       <div class="wl-en">${w.en}${w.type==='noun'&&w.pl?' · pl. '+w.pl:''}</div>
       ${w.ex?`<div class="wl-ex">„${w.ex}"</div>`:''}
+      <div style="margin-top:8px"><a class="dictcc-link" href="${dictccUrl(w)}" target="_blank" rel="noopener noreferrer">🔎 dict.cc ↗</a></div>
     </div>`;
   }).join('')||'<div class="empty">No words found.</div>';
 }
