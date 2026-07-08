@@ -96,7 +96,7 @@ The web app is organised by concern inside one file: content data, pure logic, a
 
 ### 5.1 Word schema
 - **Noun:** `{ art:"der|die|das", base:"Haus", pl:"Häuser", type:"noun", en, ex, level? }`
-- **Non-noun:** `{ w:"gehen", type:"verb|adj|other|phrase", en, ex, level? }`
+- **Non-noun:** `{ w:"gehen", type:"verb|adj|other|prep|phrase", en, ex, level? }` — `prep` (prepositions) is surfaced as a filter tab in "All Words"; `phrase` is used by the phrasebook.
 - **ID (`wid`):** nouns → `N:<art>:<base>`; others → `<type>:<w>`; an explicit `id` (custom words) overrides.
 - `germanOf(w)` returns the display word (`base` for nouns, else `w`); `fullGerman(w)` prepends the article for nouns.
 
