@@ -24,7 +24,7 @@ const NAMES = ['WORDS','WORDS_A1','WORDS_B1','WORDLISTS','THEMES','THEME_WORDS',
   'totalLearned','buildSession','storiesForLevel','storyLevel','rotationFor','reindexCustomWords',
   'shuffle','themeByKey','activityData','activityHeatmap','applyTheme','setTheme',
   'gradeTyped','normalizeAnswer','levenshtein','setStudyStyle','migrateProg','checkTyped',
-  'reminderNotification','reminderTimeParts','applyReminder','autoBackup','setReminderEnabled','setReminderTime','setAutoBackup','notifPlugin','fsPlugin','restoreAutoBackup'];
+  'reminderNotification','reminderTimeParts','applyReminder','autoBackup','setReminderEnabled','setReminderTime','setAutoBackup','notifPlugin','fsPlugin','restoreAutoBackup','dictccUrl'];
 scriptSrc += '\n;globalThis.__APP__={};' + NAMES.map(n =>
   `try{globalThis.__APP__[${JSON.stringify(n)}]=${n};}catch(e){}`).join('');
 
@@ -307,6 +307,12 @@ test('PREP-02','Word Lists','Browse screen exposes a Präpositionen filter chip'
 test('PREP-03','Word Lists','Preposition pill style (.pill.prep) exists', ()=> /\.pill\.prep\b/.test(HTML));
 test('PREP-04','Word Lists','Each loaded level has prepositions tagged prep', ()=>{ let n=0; for(const lvl of ['A1','A2','B1']) n+=(A.WORDLISTS[lvl]||[]).filter(w=>w.type==='prep').length; assert(n>=70, 'only '+n+' prep words'); return true; });
 test('PREP-05','Word Lists','Preposition homographs kept their real type (der Dank noun, laut adj)', ()=>{ const all=[].concat(A.WORDLISTS.A1||[],A.WORDLISTS.A2||[],A.WORDLISTS.B1||[]); const dank=all.find(w=>w.type==='noun'&&(w.base||'')==='Dank'); const laut=all.find(w=>(A.germanOf(w)||'')==='laut'&&w.type==='adj'); return (!dank || dank.type==='noun') && (!laut || laut.type==='adj'); });
+
+/* =========================================================
+   23. DICT.CC LOOK-UP LINK
+   ========================================================= */
+test('DICT-01','Word Lists','dictccUrl builds an encoded dict.cc search on the German word', ()=>{ assert(A.dictccUrl({type:'verb',w:'gehen'})==='https://www.dict.cc/?s=gehen','verb'); assert(A.dictccUrl({type:'noun',base:'Haus',art:'das'})==='https://www.dict.cc/?s=Haus','noun uses base'); assert(/%C3%BCr$/.test(A.dictccUrl({type:'other',w:'für'})),'umlaut encoded'); return true; });
+test('DICT-02','Word Lists','All Words rows and the flashcard link out to dict.cc', ()=> /dictccUrl\(w\)/.test(HTML) && /www\.dict\.cc/.test(HTML) && /\.dictcc-link/.test(HTML) && (HTML.match(/class="dictcc-link"/g)||[]).length>=2);
 
 /* =========================================================
    run async tests, then report
