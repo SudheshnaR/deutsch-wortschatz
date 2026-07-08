@@ -50,6 +50,7 @@ Make daily German vocabulary practice effortless and genuinely sticky — throug
 - **Three vocabulary levels:** A1, A2 and B1 — **4,537 curated level words** (plus the phrasebook below; **5,576 entries total**, verified by `npm run audit`).
 - **Themed phrasebook** ("Themen-Wortschatz"): **1,039 entries across 21 topics** (greetings, food, travel, home, health, technology, …), including a dedicated `phrase` type.
 - **Flashcard study** with German↔English, articles, and natural example sentences.
+- **Browse "All Words"** with search and word-type filters — Nouns, Verbs, Adjectives, **Präpositionen (prepositions)**, and Other.
 - **Three study modes** — **Flip** (classic reveal), **Type** (active recall: type the German for an English prompt, with forgiving grading), and **Listen** (dictation: hear the German and type what you heard). All three feed the same schedule and daily goal.
 - **Spaced-repetition review** with a per-card **ease factor + interval (SM-2-lite)**: correct answers stretch the interval, misses shrink it — so easy words return rarely and tricky ones come back soon.
 - **Daily stories:** 270 total (90 per level ≈ a 3-month course each), with audio, sentence-level translation, and a comprehension quiz.
