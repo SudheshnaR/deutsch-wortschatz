@@ -276,8 +276,8 @@ test('RB-10','Reminders','Settings screen exposes the reminder toggle + auto-bac
    19. CONTENT-QUALITY GUARDRAILS (Batch 4) — invariants over the real data
    ========================================================= */
 const _ARTS_OK=new Set(['der','die','das']);
-const _LTYPES=new Set(['noun','verb','adj','other']);
-const _TTYPES=new Set(['noun','verb','adj','other','phrase']);
+const _LTYPES=new Set(['noun','verb','adj','other','prep']);
+const _TTYPES=new Set(['noun','verb','adj','other','phrase','prep']);
 function _levelEntries(){ const o=[]; for(const [l,arr] of Object.entries(A.WORDLISTS||{})) for(const w of arr) o.push([l,w]); return o; }
 test('CQ-08','Content Quality','Every noun base is capitalized', ()=>{ const bad=_levelEntries().filter(([l,w])=>w.type==='noun'&&w.base&&/^[a-zäöüß]/.test(w.base)); assert(bad.length===0, bad.slice(0,3).map(x=>x[1].base).join(',')); return true; });
 test('CQ-09','Content Quality','Every noun article is der/die/das', ()=>{ const bad=_levelEntries().filter(([l,w])=>w.type==='noun'&&!_ARTS_OK.has(w.art)); assert(bad.length===0, bad.length+' bad-article nouns'); return true; });
@@ -298,6 +298,15 @@ atest('CW-04','Custom Words','Added words persist across a reload (saved to stor
    21. DEV BAR REMOVED (release polish)
    ========================================================= */
 test('UI-01','Config','The dev "Test date" simulation bar is fully removed', ()=> !/sim-bar/.test(HTML) && !/Test date/.test(HTML) && !/function simBar/.test(HTML));
+
+/* =========================================================
+   22. PREPOSITIONS — "prep" type + Browse tab
+   ========================================================= */
+test('PREP-01','Word Lists','Common prepositions are typed "prep" (an, mit, für, ohne, zwischen)', ()=>{ const A1=A.WORDLISTS.A1||[]; const find=g=>A1.find(w=>(A.germanOf(w)||'').toLowerCase()===g); return ['an','mit','für','ohne','zwischen'].every(g=>{ const w=find(g); return !!w && w.type==='prep'; }); });
+test('PREP-02','Word Lists','Browse screen exposes a Präpositionen filter chip', ()=> /setWlFilter\('prep'/.test(HTML) && /Präpositionen/.test(HTML));
+test('PREP-03','Word Lists','Preposition pill style (.pill.prep) exists', ()=> /\.pill\.prep\b/.test(HTML));
+test('PREP-04','Word Lists','Each loaded level has prepositions tagged prep', ()=>{ let n=0; for(const lvl of ['A1','A2','B1']) n+=(A.WORDLISTS[lvl]||[]).filter(w=>w.type==='prep').length; assert(n>=70, 'only '+n+' prep words'); return true; });
+test('PREP-05','Word Lists','Preposition homographs kept their real type (der Dank noun, laut adj)', ()=>{ const all=[].concat(A.WORDLISTS.A1||[],A.WORDLISTS.A2||[],A.WORDLISTS.B1||[]); const dank=all.find(w=>w.type==='noun'&&(w.base||'')==='Dank'); const laut=all.find(w=>(A.germanOf(w)||'')==='laut'&&w.type==='adj'); return (!dank || dank.type==='noun') && (!laut || laut.type==='adj'); });
 
 /* =========================================================
    run async tests, then report

@@ -41,8 +41,8 @@ vm.runInContext(scriptSrc, sb, { timeout:15000 });
 const A = sb.__A__;
 
 /* ---- helpers / heuristics ---- */
-const LEVEL_TYPES = new Set(['noun','verb','adj','other']);
-const THEME_TYPES = new Set(['noun','verb','adj','other','phrase']);
+const LEVEL_TYPES = new Set(['noun','verb','adj','other','prep']);
+const THEME_TYPES = new Set(['noun','verb','adj','other','phrase','prep']);
 const ARTS = new Set(['der','die','das']);
 const fold = s => String(s||'').toLowerCase().replace(/ä/g,'a').replace(/ö/g,'o').replace(/ü/g,'u').replace(/ß/g,'ss');
 const SEP_PREFIXES = ['zurueck','zusammen','entgegen','vorbei','wieder','weiter','ueber','unter','durch','empor',
