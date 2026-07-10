@@ -21,7 +21,7 @@ Scan the QR (or open the link) → on a phone, tap **Share → Add to Home Scree
 | Install on an iPhone (step by step) | [`docs/Deutsch_Wortschatz_iPhone_Install_Guide.pdf`](docs/Deutsch_Wortschatz_iPhone_Install_Guide.pdf) |
 | Read the product spec | [`docs/PRD.md`](docs/PRD.md) |
 | Read the technical design | [`docs/TDD.md`](docs/TDD.md) |
-| Read the test report (118/118 passing) | [`docs/TEST_REPORT.md`](docs/TEST_REPORT.md) |
+| Read the test report (122/122 passing) | [`docs/TEST_REPORT.md`](docs/TEST_REPORT.md) |
 | See the content-quality audit | [`docs/CONTENT_AUDIT.md`](docs/CONTENT_AUDIT.md) |
 | Run the automated tests / audit | `npm test` · `npm run audit` |
 | CI (tests + Android build + web deploy) | GitHub Actions — `.github/workflows/` |
@@ -44,9 +44,10 @@ and a splash screen.
 
 ## Features
 
-- **Flashcards** across **A1, A2 and B1** (4,537 curated words) + a **1,039-entry themed phrasebook**.
-- **Three study modes:** Flip · **Type** (active recall) · **Listen** (dictation).
+- **Flashcards** across **A1, A2 and B1** (4,537 curated words) + a **1,039-entry themed phrasebook** (with a **Präpositionen** tab).
+- **Learn, then test yourself:** learn with **Flip** flashcards, then **Type** / **Listen** self-tests (they don't change your schedule) with **"Retry the ones you missed"** — also launchable from Home (*Test today's words* / *Test your learnings so far*).
 - **Smarter spaced repetition** — per-card ease + interval (SM-2-lite).
+- **Look up any word on dict.cc** in an in-app browser.
 - **Daily stories** (270) with audio, translation, and a comprehension quiz.
 - **My Words** — add your own vocabulary; it persists until you delete it.
 - **Daily reminder** (opt-in notification), **Home activity heatmap**, and streaks.

@@ -1,11 +1,12 @@
 # Deutsch Wortschatz — Product Requirements Document (PRD)
 
 **German Vocabulary Learning App · A1 · A2 · B1**
-**Version 1.2 · 2026-07-07**
+**Version 1.3 · 2026-07-10**
 
 > This is the Markdown source of record for the PRD. Companion documents: [`TDD.md`](TDD.md) (how it's built) and [`TEST_REPORT.md`](TEST_REPORT.md) (how it's verified).
 >
-> **What's new in 1.2:** light/system/dark theme; three study modes (Flip / Type / Listen); smarter (SM-2-lite) spaced repetition; daily study reminders; automatic on-device backup; a Home activity heatmap; an accessibility pass; and a content-quality audit tool run in CI. All additions stay **fully offline and on-device**.
+> **What's new in 1.3:** learning and testing are now **separate** — study with **Flip** flashcards, then a **Test yourself** step (Type / Listen) that doesn't change your schedule, with **"Retry the ones you missed."** Two Home shortcuts: **Test today's words** and **Test your learnings so far.** Also: a **Präpositionen** tab in *All Words*, and a **dict.cc** look-up that opens in an in-app browser.
+> **1.2:** light/system/dark theme; smarter (SM-2-lite) spaced repetition; daily study reminders; automatic on-device backup; a Home activity heatmap; an accessibility pass; and a content-quality audit tool run in CI. All fully **offline and on-device**.
 
 ---
 
@@ -51,7 +52,7 @@ Make daily German vocabulary practice effortless and genuinely sticky — throug
 - **Themed phrasebook** ("Themen-Wortschatz"): **1,039 entries across 21 topics** (greetings, food, travel, home, health, technology, …), including a dedicated `phrase` type.
 - **Flashcard study** with German↔English, articles, and natural example sentences.
 - **Browse "All Words"** with search and word-type filters — Nouns, Verbs, Adjectives, **Präpositionen (prepositions)**, and Other.
-- **Three study modes** — **Flip** (classic reveal), **Type** (active recall: type the German for an English prompt, with forgiving grading), and **Listen** (dictation: hear the German and type what you heard). All three feed the same schedule and daily goal.
+- **Learn, then test yourself** — study with **Flip** flashcards (flip, hear, rate → this sets your review schedule). After the cards, a **Test yourself** step offers **⌨️ Type** (type the German for an English prompt; forgiving grading) and **🎧 Listen** (dictation) — self-checks that **don't** change the schedule, with a **"Retry the ones you missed"** option. Tests can also be launched from **Home**: *Test today's words* and *Test your learnings so far*.
 - **Spaced-repetition review** with a per-card **ease factor + interval (SM-2-lite)**: correct answers stretch the interval, misses shrink it — so easy words return rarely and tricky ones come back soon.
 - **Daily stories:** 270 total (90 per level ≈ a 3-month course each), with audio, sentence-level translation, and a comprehension quiz.
 - **Vocabulary filter:** hide words already learned at lower levels.
@@ -100,8 +101,9 @@ Priorities: **Must / Should / Could.** Applies to all levels unless noted.
 | FR-15 | Vocabulary filter hides words tagged to a lower level. | Should |
 | FR-16 | "My Words" lets users add/edit/delete custom vocabulary, usable in study, review and games; added words persist until deleted. | Should |
 | FR-17 | Themed phrasebook lets users browse and study vocabulary by topic. | Should |
-| FR-18 | Offer a **Type** (active-recall) mode: user types the German for an English prompt, graded leniently (case/whitespace-insensitive, article-optional, 1-character typo = "almost"). | Should |
-| FR-19 | Offer a **Listen** (dictation) mode: play the German audio and let the user type what they heard, graded like Type. | Should |
+| FR-18 | After a flashcard session, offer a **Test yourself** step with **Type** (type the German for an English prompt; case/whitespace-insensitive, article-optional, 1-char typo = "almost") and **Listen** (dictation) self-checks. | Should |
+| FR-19 | Testing is a **self-check that does not change the review schedule**; the results screen lists missed words and offers **"Retry the ones you missed."** | Should |
+| FR-19a | Launch a test from **Home**: *Test today's words* (today's studied words) and *Test your learnings so far* (all learned words for the level). | Should |
 
 ### 5.3 Reading (stories)
 | ID | Requirement | Prio |
@@ -148,4 +150,4 @@ Priorities: **Must / Should / Could.** Applies to all levels unless noted.
 - Audio plays for words and stories on both iOS and Android; the daily reminder fires when enabled.
 - Backup export/import round-trips a user's progress, and the automatic on-device backup restores.
 - Light and dark themes are both fully readable (no invisible text).
-- The automated suite passes (currently **110/110**) in CI, the content audit reports **0 hard errors**, and the manual UI checklist passes on a device.
+- The automated suite passes (currently **122/122**) in CI, the content audit reports **0 hard errors**, and the manual UI checklist passes on a device.
