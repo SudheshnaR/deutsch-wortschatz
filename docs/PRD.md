@@ -3,7 +3,7 @@
 **German Vocabulary Learning App · A1 · A2 · B1**
 **Version 1.2 · 2026-07-07**
 
-> This is the Markdown source of record for the PRD (supersedes the earlier `Deutsch_Wortschatz_PRD.docx`). Companion documents: [`TDD.md`](TDD.md) (how it's built) and [`TEST_REPORT.md`](TEST_REPORT.md) (how it's verified).
+> This is the Markdown source of record for the PRD. Companion documents: [`TDD.md`](TDD.md) (how it's built) and [`TEST_REPORT.md`](TEST_REPORT.md) (how it's verified).
 >
 > **What's new in 1.2:** light/system/dark theme; three study modes (Flip / Type / Listen); smarter (SM-2-lite) spaced repetition; daily study reminders; automatic on-device backup; a Home activity heatmap; an accessibility pass; and a content-quality audit tool run in CI. All additions stay **fully offline and on-device**.
 
