@@ -1,11 +1,12 @@
 # Deutsch Wortschatz — Technical Design Document (TDD)
 
 **Architecture, data model & build pipeline**
-**Version 1.2 · 2026-07-07**
+**Version 1.3 · 2026-07-10**
 
 > Markdown source of record. Companions: [`PRD.md`](PRD.md), [`TEST_REPORT.md`](TEST_REPORT.md), [`CONTENT_AUDIT.md`](CONTENT_AUDIT.md).
 >
-> **Changes in 1.2:** light/system theme via CSS design tokens; Flip/Type/Listen study modes; SM-2-lite spaced repetition (with box→ease migration); daily local notifications; automatic on-device backup; Home activity heatmap; accessibility pass; content-audit tool; GitHub Actions CI. The QA "test-date" bar was removed (the underlying `simOffset` hook remains for tests).
+> **Changes in 1.3:** learning (flip-only) and testing (type/listen) are now **separate** — a post-session **Test yourself** step + Home shortcuts (`runTest`/`renderTest`/`retryMissed`/`learnedTodayIds`/`learnedAllIds`); a **Präpositionen** (`prep`) tab; **dict.cc** look-up via the in-app `@capacitor/browser`.
+> **1.2:** light/system theme via CSS design tokens; SM-2-lite spaced repetition (box→ease migration); daily local notifications; automatic on-device backup; Home activity heatmap; accessibility pass; content-audit tool; GitHub Actions CI. The QA "test-date" bar was removed (the `simOffset` hook remains for tests).
 
 ---
 
@@ -82,7 +83,8 @@ The web app is organised by concern inside one file: content data, pure logic, a
 | `WORD_BY_ID` | Index of every word by a stable ID (`wid`), so lookups work regardless of level. |
 | `DB` module | Profiles, levels, load/save/migrate; exposes `get()`, `setLevel()`, `loginAs()`, `logout()`, `importData()`, `reset()`, custom-word CRUD (`addCustomWord`/`updateCustomWord`/…, each `save()`-backed), `serialize()`, `sizeBytes()`. |
 | SRS core | `INTERVALS` (legacy, used for migration), `ensureProg`, `migrateProg`, `rateWord`, `dueReviewIds`, `scheduledReviews`, `pullNewBatch`, `buildSession`. |
-| Study modes | `setStudyStyle`, `gradeTyped`, `normalizeAnswer`, `levenshtein`, `checkTyped` (Flip/Type/Listen). |
+| Learn / test flow | **Learn** = flip-only flashcards (`renderStudy` → `flipStudy`/`doRate` → SRS). **Test** = `renderTest` over a word set via `runTest`/`startTest`/`restartTest`/`retryMissed`, with `checkTest`/`nextTest`/`gradeTyped` — a self-check that does *not* change the schedule. Word sets: `learnedTodayIds`/`learnedAllIds`; chooser `openTestChooser`/`chooseTest`; state in the module var `test`. |
+| dict.cc / browser | `dictccUrl`, `openDictcc` — open a word on dict.cc in the in-app browser (`@capacitor/browser`), with a web fallback. |
 | Theme | `applyTheme`, `setTheme` — set `data-theme` on `<html>` and sync `StatusBar` style. |
 | Reminders | `applyReminder`, `reminderNotification`, `reminderTimeParts`, `setReminderEnabled`, `setReminderTime`. |
 | Backup | `autoBackup`, `setAutoBackup`, `restoreAutoBackup` (Filesystem, Documents dir). |
@@ -124,7 +126,7 @@ Persistence lives in one place (the `DB` module's `rawGet`/`rawSet`): **Capacito
 ## 6. Core algorithms
 
 - **Spaced repetition (SM-2-lite).** Each card has an `ease` (default 2.5, clamped **1.3–2.7**) and an `interval` in days. "Got it" → `ease += 0.05`; interval grows `1 → 4 → round(interval × ease)`; `reps++`. "Again" → `ease −= 0.2`, `reps = 0`, `interval = 1` (relearn tomorrow). `due = today + interval`. Legacy box-only entries are migrated on first touch (`migrateProg`: `interval = INTERVALS[box]`, `ease = 2.5`). `dueReviewIds()` returns entries with `due ≤ today`.
-- **Study modes.** `renderStudy` branches on `settings.studyStyle`. **Type/Listen** show a prompt + input; `gradeTyped()` normalises both sides (`normalizeAnswer`: lowercase, trim, strip article, drop punctuation) and returns `correct` / `almost` (Levenshtein ≤ 1) / `wrong`, then the same rate row feeds `rateWord`.
+- **Learn → test.** The Study session is **flip-only** (learn: flip, hear, rate → `rateWord` sets the SRS). After the queue, a **Test yourself** screen starts a self-test (`runTest(mode, ids)` sets the `test` state and reuses the type/listen render). `gradeTyped()` normalises both sides (`normalizeAnswer`: lowercase, trim, strip article, drop punctuation) → `correct` / `almost` (Levenshtein ≤ 1) / `wrong`. Tests **never call `rateWord`** (self-check only); missed ids are collected for `retryMissed`. Home entry points test today's words (`learnedTodayIds`) or all learned words (`learnedAllIds`).
 - **Daily batch & session.** `pullNewBatch(n)` seeds `n` unseen words; `buildSession()` merges today's un-rated new words with due reviews per `reviewMode` (`mixed`/`within`/`separate`); `autoReview:false` holds due reviews in the Review tab.
 - **Vocabulary filter.** When `hideLowerLevel` is on, `activeWords()` drops entries whose `level` is below the current CEFR level.
 - **Theme.** `applyTheme()` sets `document.documentElement.dataset.theme` to the setting; CSS overrides the `:root` surface tokens (`--bg/--bg2/--card/--card2/--txt/--dim/--line`) for light, and `@media (prefers-color-scheme: light)` handles "system". The native status-bar style is synced to match.
@@ -150,14 +152,14 @@ npm run audit          # run the content-quality audit
 
 - **iOS** builds locally with Xcode (CocoaPods); `Info.plist` includes microphone + speech usage strings. Local notifications need no extra Info.plist key (permission is requested at runtime).
 - **Android** builds with Gradle.
-- **CI (GitHub Actions):** `.github/workflows/test.yml` runs `npm test` on every push/PR; `android-build.yml` builds the APK; `pages.yml` deploys the web app to GitHub Pages from `www/`.
+- **CI (GitHub Actions):** `test.yml` runs `npm test` on every push/PR; **`android-build.yml` runs `npx cap sync android` → `gradlew assembleDebug` and uploads the APK as a build artifact** (each merge yields an up-to-date Android app); `pages.yml` deploys the web app to GitHub Pages from `www/`. **iOS** is built locally (Xcode) after `npx cap sync ios` — there is no cloud iOS build because Apple code-signing is required.
 - **The one rule:** after editing `www/index.html`, run `npx cap sync` before rebuilding native (and after adding a plugin, `npx cap sync` updates the Podfile/Gradle modules).
 
 ---
 
 ## 8. Testing
 
-`tests/run.js` loads the app's real script into a Node `vm` sandbox with mocked browser globals and asserts across ~21 areas — word data, content quality, themes, IDs, filter, **SM-2 spaced repetition**, sessions, profiles/levels, persistence, custom words (incl. persistence-after-reload), stories, date/streak, **study modes** (typing grading), **theme** (surface-token coverage, no hardcoded-dark-background regression), **reminders & backup** (defaults, config builder, graceful degradation), **progress heatmap**, **accessibility**, config, and build. Run with `npm test`; regenerate the report with `npm run test:report`. Current status: **110/110 passing**. See [`TEST_REPORT.md`](TEST_REPORT.md).
+`tests/run.js` loads the app's real script into a Node `vm` sandbox with mocked browser globals and asserts across ~21 areas — word data, content quality, themes, IDs, filter, **SM-2 spaced repetition**, sessions, profiles/levels, persistence, custom words (incl. persistence-after-reload), stories, date/streak, **study modes** (typing grading), **theme** (surface-token coverage, no hardcoded-dark-background regression), **reminders & backup** (defaults, config builder, graceful degradation), **progress heatmap**, **accessibility**, **study/test flow** (learn is flip-only; the self-test does not touch the SRS; missed-word retry), **prepositions**, **dict.cc**, config, and build. Run with `npm test`; regenerate the report with `npm run test:report`. Current status: **122/122 passing**. See [`TEST_REPORT.md`](TEST_REPORT.md).
 
 `tests/audit.js` (`npm run audit`) rule-checks all ~5,576 vocabulary entries, separating **hard errors** (must be zero — CI-guarded: noun capitalisation, valid article/type, no fillers, no untrimmed fields, no exact duplicates) from **review candidates** (a curated shortlist for a human/native eye). It writes [`CONTENT_AUDIT.md`](CONTENT_AUDIT.md). Current status: **0 hard errors**.
 
