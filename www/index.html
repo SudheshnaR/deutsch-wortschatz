@@ -6593,7 +6593,8 @@ function buildSession(reviewsOnly){
   else { queue=shuffle([...dueQueue, ...newQueue]); } // 'mixed' default
   // guard against ids left over from a since-deleted word (e.g. a removed custom word)
   queue=queue.filter(item=>WORD_BY_ID[item.id]);
-  session={queue, i:0, flipped:false, answered:false, typed:'', verdict:null, mode, dueCount:dueQueue.length, newCount:newQueue.length, reviewsOnly:!!reviewsOnly};
+  session={queue, i:0, flipped:false, mode, dueCount:dueQueue.length, newCount:newQueue.length, reviewsOnly:!!reviewsOnly};
+  test=null; // starting a fresh learning session clears any prior self-test
   return session;
 }
 
@@ -6692,9 +6693,12 @@ function addMoreWords(){
   buildSession(); showScreen('study');
 }
 
+let test=null; // active self-test (type/listen) — kept separate from learning (flip)
+function getTest(){ return test; }
 function renderStudy(){
   const el=document.getElementById('screen-study');
   if(!session) buildSession();
+  if(test){ renderTest(el); return; }
   if(session.queue.length===0){
     el.innerHTML=`
       <div class="section-head"><div><h1 class="title">Study</h1><div class="sub">${fmtDate(today())}</div></div></div>
@@ -6709,32 +6713,32 @@ function renderStudy(){
     return;
   }
   if(session.i>=session.queue.length){
-    const reviewed=session.queue.filter(q=>q.kind==='review').length;
+    const n=session.queue.length, reviewed=session.queue.filter(q=>q.kind==='review').length;
     el.innerHTML=`
       <div class="section-head"><div><h1 class="title">Study</h1></div></div>
       <div class="study-done">
         <div class="big">✨</div>
         <h2 class="serif" style="font-size:24px;margin:10px 0 6px">Session complete!</h2>
-        <div class="sub" style="margin-bottom:20px">${session.queue.length} cards studied${reviewed?` · ${reviewed} reviews`:''}</div>
-        <button class="btn" onclick="addMoreWords()">➕ Learn 10 more</button>
+        <div class="sub" style="margin-bottom:4px">You learned ${n} word${n!==1?'s':''}${reviewed?` · ${reviewed} reviews`:''}.</div>
+        <div class="set-label" style="margin-top:20px">🧪 Test yourself</div>
+        <div class="sub" style="margin-bottom:12px">Check what you just learned — this won't change your review schedule.</div>
+        <button class="btn full" onclick="startTest('type')">⌨️ Type test</button>
         <div style="height:10px"></div>
-        <div style="height:10px"></div>
-        <button class="btn ghost" onclick="showScreen('history')">See today's words</button>
+        <button class="btn full" onclick="startTest('listen')">🎧 Listen test</button>
+        <div style="height:18px"></div>
+        <button class="btn ghost full" onclick="addMoreWords()">➕ Learn more</button>
+        <div style="height:8px"></div>
+        <button class="btn ghost full" onclick="showScreen('home')">Back home</button>
       </div>`;
     return;
   }
+  // LEARN phase — flashcards only (flip + hear + rate)
   const item=session.queue[session.i];
   const w=WORD_BY_ID[item.id];
   const art = w.type==='noun' ? `<span class="art-${w.art}">${w.art}</span>` : '';
-  const style=(DB.get().settings.studyStyle)||'flip';
-  const head=`
+  el.innerHTML=`
     <div class="section-head"><div><h1 class="title">Study</h1><div class="sub">${session.mode==='separate'&&item.kind==='review'?'Review session':'Today'}</div></div></div>
     <div class="study-prog">Card ${session.i+1} of ${session.queue.length}${item.kind==='review'?' · 🔁 review':''}</div>
-    <div class="chips" style="justify-content:center;margin-bottom:12px">
-      ${[['flip','🔄 Flip'],['type','⌨️ Type'],['listen','🎧 Listen']].map(([k,l])=>`<div class="chip ${style===k?'active':''}" onclick="setStudyStyle('${k}')">${l}</div>`).join('')}
-    </div>`;
-  if(style==='flip'){
-    el.innerHTML=head+`
     <div class="fc-wrap">
       <div class="fc" id="fc" onclick="flipStudy()">
         <div class="fc-face fc-front">
@@ -6758,36 +6762,56 @@ function renderStudy(){
       </div>
     </div>
     <div id="rateRow"></div>`;
-    session.flipped=false;
-  } else if(!session.answered){
-    const prompt = style==='listen'
+  session.flipped=false;
+}
+function renderTest(el){
+  if(test.i>=test.queue.length){
+    const n=test.queue.length, other=test.mode==='type'?'listen':'type', pct=n?test.correct/n:0;
+    el.innerHTML=`
+      <div class="section-head"><div><h1 class="title">Test</h1></div></div>
+      <div class="study-done">
+        <div class="big">${pct>=0.8?'🌟':pct>=0.5?'👍':'💪'}</div>
+        <h2 class="serif" style="font-size:26px;margin:10px 0 6px">You got ${test.correct} / ${n}</h2>
+        <div class="sub" style="margin-bottom:20px">${test.mode==='type'?'Typing':'Listening'} test complete.</div>
+        <button class="btn full" onclick="startTest('${other}')">${other==='type'?'⌨️ Try the Type test':'🎧 Try the Listen test'}</button>
+        <div style="height:10px"></div>
+        <button class="btn ghost full" onclick="startTest('${test.mode}')">🔁 Repeat this test</button>
+        <div style="height:10px"></div>
+        <button class="btn ghost full" onclick="endTest()">✓ Finish</button>
+      </div>`;
+    return;
+  }
+  const w=WORD_BY_ID[test.queue[test.i]];
+  const art = w.type==='noun' ? `<span class="art-${w.art}">${w.art}</span>` : '';
+  const head=`
+    <div class="section-head"><div><h1 class="title">${test.mode==='type'?'⌨️ Type test':'🎧 Listen test'}</h1><div class="sub">Testing what you learned</div></div></div>
+    <div class="study-prog">Question ${test.i+1} of ${test.queue.length} · Score ${test.correct}</div>`;
+  if(!test.answered){
+    const prompt = test.mode==='listen'
       ? `<div class="fc-top"><span class="pill ${w.type}">${w.type}</span><span style="font-size:12px;color:var(--dim)">listen</span></div>
          <div class="fc-center"><div class="sub" style="margin-bottom:12px">🎧 Listen and type what you hear</div>
-         <button class="speak-btn" onclick="speakWord(WORD_BY_ID['${item.id}'],event)" aria-label="Replay audio">🔊 Replay</button></div>`
+         <button class="speak-btn" onclick="speakWord(WORD_BY_ID['${test.queue[test.i]}'],event)" aria-label="Replay audio">🔊 Replay</button></div>`
       : `<div class="fc-top"><span class="pill ${w.type}">${w.type}</span><span style="font-size:12px;color:var(--dim)">type the German</span></div>
          <div class="fc-center"><div class="fc-en">${w.en}</div>
          <div class="sub" style="margin-top:6px">Type the German word${w.type==='noun'?' (article optional)':''}</div></div>`;
     el.innerHTML=head+`
       <div class="card-box" style="min-height:190px;display:flex;flex-direction:column;justify-content:center;text-align:center">${prompt}</div>
-      <input class="search-box" id="typeAns" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Your answer…" aria-label="Type your answer" onkeydown="if(event.key==='Enter')checkTyped()">
-      <button class="btn full" style="margin-top:10px" onclick="checkTyped()">Check</button>`;
-    if(style==='listen'){ try{ speakWord(w); }catch(e){} }
+      <input class="search-box" id="typeAns" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Your answer…" aria-label="Type your answer" onkeydown="if(event.key==='Enter')checkTest()">
+      <button class="btn full" style="margin-top:10px" onclick="checkTest()">Check</button>`;
+    if(test.mode==='listen'){ try{ speakWord(w); }catch(e){} }
   } else {
     const vmap={correct:['✓ Correct','var(--accent)'],almost:['≈ Almost','var(--adj)'],wrong:['✗ Not quite','var(--other)']};
-    const vd=vmap[session.verdict]||vmap.wrong;
+    const vd=vmap[test.verdict]||vmap.wrong;
     el.innerHTML=head+`
       <div class="card-box" style="min-height:190px;display:flex;flex-direction:column;justify-content:center;text-align:center">
-        <div style="font-size:13px;color:var(--dim);margin-bottom:6px">You typed: <b>${String(session.typed||'—').replace(/</g,'&lt;')}</b> · <span style="color:${vd[1]};font-weight:700">${vd[0]}</span></div>
+        <div style="font-size:13px;color:var(--dim);margin-bottom:6px">You typed: <b>${String(test.typed||'—').replace(/</g,'&lt;')}</b> · <span style="color:${vd[1]};font-weight:700">${vd[0]}</span></div>
         ${w.type==='noun'?`<div class="fc-art">${art}</div>`:''}
         <div class="fc-word">${germanOf(w)}</div>
-        <button class="speak-btn" onclick="speakWord(WORD_BY_ID['${item.id}'],event)" aria-label="Hear pronunciation">🔊</button>
+        <button class="speak-btn" onclick="speakWord(WORD_BY_ID['${test.queue[test.i]}'],event)" aria-label="Hear pronunciation">🔊</button>
         <div class="fc-en" style="margin-top:8px">${w.en}</div>
         ${w.ex?`<div class="fc-ex">„${w.ex}"</div>`:''}
       </div>
-      <div class="rate-row" style="margin-top:12px">
-        <button class="rate-btn rate-again" onclick="doRate('again')">↻ Review again<br><span style="font-weight:500;font-size:12px;opacity:.8">in 1 day</span></button>
-        <button class="rate-btn rate-got" onclick="doRate('got')">✓ Got it<br><span style="font-weight:500;font-size:12px;opacity:.8">next interval</span></button>
-      </div>`;
+      <button class="btn full" style="margin-top:12px" onclick="nextTest()">${test.i+1>=test.queue.length?'See results →':'Next →'}</button>`;
   }
 }
 function flipStudy(){
@@ -6803,19 +6827,15 @@ function flipStudy(){
       </div>`;
   }
 }
-function doRate(result){
-  const item=session.queue[session.i];
-  rateWord(item.id, result);
-  session.answered=false; session.typed=''; session.verdict=null;
-  session.i++;
-  renderStudy();
-}
-/* ===== Study styles: Type & Listen (Batch 2) ===== */
-function setStudyStyle(st){ const s=DB.get(); s.settings.studyStyle=st; DB.save(); if(session){ session.answered=false; session.typed=''; session.verdict=null; } renderStudy(); }
+function doRate(result){ rateWord(session.queue[session.i].id, result); session.i++; renderStudy(); }
+/* ===== Self-test flow — Type & Listen (learning stays flip-only) ===== */
+function startTest(mode){ const ids=(session?session.queue.map(q=>q.id):[]).filter(id=>WORD_BY_ID[id]); test={ mode, queue:ids, i:0, answered:false, typed:'', verdict:null, correct:0, wrong:0 }; renderStudy(); }
+function checkTest(){ const inp=document.getElementById('typeAns'); const val=inp?inp.value:''; const w=WORD_BY_ID[test.queue[test.i]]; test.typed=val; test.verdict=gradeTyped(val,w); if(test.verdict!=='wrong') test.correct++; else test.wrong++; test.answered=true; renderStudy(); }
+function nextTest(){ test.answered=false; test.typed=''; test.verdict=null; test.i++; renderStudy(); }
+function endTest(){ test=null; showScreen('home'); }
 function normalizeAnswer(s){ return String(s||'').toLowerCase().trim().replace(/^(der|die|das)\s+/,'').replace(/[.!?,;:"'„"]/g,'').replace(/\s+/g,' ').trim(); }
 function levenshtein(a,b){ const m=a.length,n=b.length; if(!m)return n; if(!n)return m; const d=Array.from({length:m+1},(_,i)=>{const r=Array(n+1).fill(0); r[0]=i; return r;}); for(let j=1;j<=n;j++)d[0][j]=j; for(let i=1;i<=m;i++)for(let j=1;j<=n;j++){ const c=a[i-1]===b[j-1]?0:1; d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+c);} return d[m][n]; }
 function gradeTyped(input,w){ const a=normalizeAnswer(input), b=normalizeAnswer(germanOf(w)); if(!a) return 'wrong'; if(a===b) return 'correct'; if(b.length>=3 && levenshtein(a,b)<=1) return 'almost'; return 'wrong'; }
-function checkTyped(){ const inp=document.getElementById('typeAns'); const val=inp?inp.value:''; const item=session.queue[session.i]; const w=WORD_BY_ID[item.id]; session.typed=val; session.verdict=gradeTyped(val,w); session.answered=true; renderStudy(); }
 
 /* ===== HISTORY ===== */
 let calMonth=null; // Date pointing to first of displayed month
