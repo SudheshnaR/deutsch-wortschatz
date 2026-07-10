@@ -23,7 +23,7 @@ const NAMES = ['WORDS','WORDS_A1','WORDS_B1','WORDLISTS','THEMES','THEME_WORDS',
   'isIntroduced','scheduledReviews','rateWord','pullNewBatch','ensureProg','streakCount',
   'totalLearned','buildSession','storiesForLevel','storyLevel','rotationFor','reindexCustomWords',
   'shuffle','themeByKey','activityData','activityHeatmap','applyTheme','setTheme',
-  'gradeTyped','normalizeAnswer','levenshtein','setStudyStyle','migrateProg','checkTyped',
+  'gradeTyped','normalizeAnswer','levenshtein','migrateProg','startTest','checkTest','nextTest','endTest','getTest',
   'reminderNotification','reminderTimeParts','applyReminder','autoBackup','setReminderEnabled','setReminderTime','setAutoBackup','notifPlugin','fsPlugin','restoreAutoBackup','dictccUrl','openDictcc','browserPlugin'];
 scriptSrc += '\n;globalThis.__APP__={};' + NAMES.map(n =>
   `try{globalThis.__APP__[${JSON.stringify(n)}]=${n};}catch(e){}`).join('');
@@ -255,8 +255,8 @@ test('SM-02','Study Modes','Typing check: article is optional for nouns', ()=> A
 test('SM-03','Study Modes','Typing check: a one-character typo is "almost"', ()=> A.gradeTyped('gehn',{type:'verb',w:'gehen'})==='almost' || A.levenshtein('gehn','gehen')+'');
 test('SM-04','Study Modes','Typing check: a clearly different answer is "wrong"', ()=> A.gradeTyped('laufen',{type:'verb',w:'gehen'})==='wrong');
 test('SM-05','Study Modes','Typing check: case- and whitespace-insensitive', ()=> A.gradeTyped('  GEHEN  ',{type:'verb',w:'gehen'})==='correct');
-test('SM-06','Study Modes','Study style selector present in the study screen (Flip/Type/Listen)', ()=> /setStudyStyle/.test(HTML) && /⌨️ Type/.test(HTML) && /🎧 Listen/.test(HTML));
-atest('SM-07','Study Modes','studyStyle defaults to flip and setStudyStyle persists', async ()=>{ await profile('sm7'); DB.setLevel('A1'); assert(DB.get().settings.studyStyle==='flip','default '+DB.get().settings.studyStyle); A.setStudyStyle('type'); assert(DB.get().settings.studyStyle==='type','not persisted'); A.setStudyStyle('flip'); });
+test('SM-06','Study Modes','Learning is flip-only (no mode chips); "Test yourself" offers Type & Listen', ()=> !/setStudyStyle\(/.test(HTML) && /startTest\('type'\)/.test(HTML) && /startTest\('listen'\)/.test(HTML) && /Test yourself/.test(HTML));
+atest('SM-07','Study Modes','Test-yourself runs on the session words and does NOT change the SRS', async ()=>{ await profile('sm7'); DB.setLevel('A1'); A.pullNewBatch(3); A.buildSession(); A.startTest('type'); const t=A.getTest(); assert(t && t.mode==='type' && t.i===0 && t.correct===0,'test not started'); assert(t.queue.length>=1,'no test words: '+t.queue.length); const id=t.queue[0]; const before=JSON.stringify(DB.get().progress[id]||null); A.checkTest(); const after=JSON.stringify(DB.get().progress[t.queue[0]]||null); assert(before===after,'SRS changed during the test'); assert(A.getTest().answered===true,'not answered'); });
 
 /* =========================================================
    18. REMINDERS & AUTO-BACKUP (Batch 3)
