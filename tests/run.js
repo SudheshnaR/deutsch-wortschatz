@@ -24,7 +24,7 @@ const NAMES = ['WORDS','WORDS_A1','WORDS_B1','WORDLISTS','THEMES','THEME_WORDS',
   'totalLearned','buildSession','storiesForLevel','storyLevel','rotationFor','reindexCustomWords',
   'shuffle','themeByKey','activityData','activityHeatmap','applyTheme','setTheme',
   'gradeTyped','normalizeAnswer','levenshtein','setStudyStyle','migrateProg','checkTyped',
-  'reminderNotification','reminderTimeParts','applyReminder','autoBackup','setReminderEnabled','setReminderTime','setAutoBackup','notifPlugin','fsPlugin','restoreAutoBackup','dictccUrl'];
+  'reminderNotification','reminderTimeParts','applyReminder','autoBackup','setReminderEnabled','setReminderTime','setAutoBackup','notifPlugin','fsPlugin','restoreAutoBackup','dictccUrl','openDictcc','browserPlugin'];
 scriptSrc += '\n;globalThis.__APP__={};' + NAMES.map(n =>
   `try{globalThis.__APP__[${JSON.stringify(n)}]=${n};}catch(e){}`).join('');
 
@@ -312,7 +312,8 @@ test('PREP-05','Word Lists','Preposition homographs kept their real type (der Da
    23. DICT.CC LOOK-UP LINK
    ========================================================= */
 test('DICT-01','Word Lists','dictccUrl builds an encoded dict.cc search on the German word', ()=>{ assert(A.dictccUrl({type:'verb',w:'gehen'})==='https://www.dict.cc/?s=gehen','verb'); assert(A.dictccUrl({type:'noun',base:'Haus',art:'das'})==='https://www.dict.cc/?s=Haus','noun uses base'); assert(/%C3%BCr$/.test(A.dictccUrl({type:'other',w:'für'})),'umlaut encoded'); return true; });
-test('DICT-02','Word Lists','All Words rows and the flashcard link out to dict.cc', ()=> /dictccUrl\(w\)/.test(HTML) && /www\.dict\.cc/.test(HTML) && /\.dictcc-link/.test(HTML) && (HTML.match(/class="dictcc-link"/g)||[]).length>=2);
+test('DICT-02','Word Lists','dict.cc links appear in All Words, flashcard, Review and phrasebook', ()=> /openDictcc\(/.test(HTML) && /www\.dict\.cc/.test(HTML) && (HTML.match(/class="dictcc-link"/g)||[]).length>=4);
+test('DICT-03','Word Lists','Opens via the in-app Browser plugin, with a safe web fallback', ()=>{ assert(!!pkg.dependencies['@capacitor/browser'],'@capacitor/browser not declared'); A.openDictcc('https://www.dict.cc/?s=x'); return true; });
 
 /* =========================================================
    run async tests, then report
