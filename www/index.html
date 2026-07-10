@@ -6771,13 +6771,18 @@ function renderStudy(){
 function renderTest(el){
   if(test.i>=test.queue.length){
     const n=test.queue.length, other=test.mode==='type'?'listen':'type', pct=n?test.correct/n:0;
+    const missed=test.missed||[];
+    const missedWords=missed.slice(0,8).map(id=>germanOf(WORD_BY_ID[id])).filter(Boolean).join(', ')+(missed.length>8?', …':'');
     el.innerHTML=`
       <div class="section-head"><div><h1 class="title">Test</h1></div></div>
       <div class="study-done">
-        <div class="big">${pct>=0.8?'🌟':pct>=0.5?'👍':'💪'}</div>
+        <div class="big">${missed.length===0?'🌟':pct>=0.5?'👍':'💪'}</div>
         <h2 class="serif" style="font-size:26px;margin:10px 0 6px">You got ${test.correct} / ${n}</h2>
-        <div class="sub" style="margin-bottom:20px">${test.mode==='type'?'Typing':'Listening'} test complete.</div>
-        <button class="btn full" onclick="restartTest('${other}')">${other==='type'?'⌨️ Try the Type test':'🎧 Try the Listen test'}</button>
+        <div class="sub" style="margin-bottom:${missed.length?'14':'20'}px">${test.mode==='type'?'Typing':'Listening'} test complete${missed.length?'':' — perfect!'}</div>
+        ${missed.length?`<div class="card-box" style="margin-bottom:14px;text-align:left"><div class="opt-desc"><b>Missed (${missed.length}):</b> ${missedWords}</div></div>
+        <button class="btn full" onclick="retryMissed()">🔁 Retry the ${missed.length} you missed</button>
+        <div style="height:10px"></div>`:''}
+        <button class="btn ${missed.length?'ghost ':''}full" onclick="restartTest('${other}')">${other==='type'?'⌨️ Try the Type test':'🎧 Try the Listen test'}</button>
         <div style="height:10px"></div>
         <button class="btn ghost full" onclick="restartTest('${test.mode}')">🔁 Repeat this test</button>
         <div style="height:10px"></div>
@@ -6833,14 +6838,15 @@ function flipStudy(){
 }
 function doRate(result){ rateWord(session.queue[session.i].id, result); session.i++; renderStudy(); }
 /* ===== Self-test flow — Type & Listen (learning stays flip-only) ===== */
-function runTest(mode, ids){ ids=(ids||[]).filter(id=>WORD_BY_ID[id]); if(!ids.length){ toast('No words to test yet'); return; } showScreen('study'); test={ mode, queue:ids.slice(), i:0, answered:false, typed:'', verdict:null, correct:0, wrong:0 }; renderStudy(); }
+function runTest(mode, ids){ ids=(ids||[]).filter(id=>WORD_BY_ID[id]); if(!ids.length){ toast('No words to test yet'); return; } showScreen('study'); test={ mode, queue:ids.slice(), i:0, answered:false, typed:'', verdict:null, correct:0, wrong:0, missed:[] }; renderStudy(); }
 function startTest(mode){ runTest(mode, session?session.queue.map(q=>q.id):[]); }        // post-learning: this session's words
 function restartTest(mode){ runTest(mode, test?test.queue.slice():[]); }                    // repeat/other — reuse the same set
+function retryMissed(){ if(!test||!test.missed.length) return; runTest(test.mode, test.missed.slice()); }  // re-test only the ones you got wrong
 function learnedTodayIds(){ const s=DB.get(), d=s.days[todayKey()]||{new:[],reviewed:[]}; const set=new Set(); (d.new||[]).forEach(id=>set.add(id)); (d.reviewed||[]).forEach(r=>set.add(r&&r.id)); return [...set].filter(id=>WORD_BY_ID[id]); }
 function learnedAllIds(){ return Object.keys(DB.get().progress||{}).filter(id=>WORD_BY_ID[id]); }
 function openTestChooser(which){ const ids=which==='all'?learnedAllIds():learnedTodayIds(); const n=ids.length; if(!n){ toast(which==='all'?'Learn some words first':'Study some words today first'); return; } const title=which==='all'?"Test your learnings so far":"Test today's words"; showModal(`<h2>🧪 ${title}</h2><div class="lead">${n} word${n!==1?'s':''} — a self-check; this won't change your review schedule.</div><button class="btn full" onclick="chooseTest('${which}','type')">⌨️ Type test</button><div style="height:10px"></div><button class="btn full" onclick="chooseTest('${which}','listen')">🎧 Listen test</button><div style="height:10px"></div><button class="btn ghost full" onclick="closeModal()">Cancel</button>`); }
 function chooseTest(which, mode){ closeModal(); runTest(mode, which==='all'?learnedAllIds():learnedTodayIds()); }
-function checkTest(){ const inp=document.getElementById('typeAns'); const val=inp?inp.value:''; const w=WORD_BY_ID[test.queue[test.i]]; test.typed=val; test.verdict=gradeTyped(val,w); if(test.verdict!=='wrong') test.correct++; else test.wrong++; test.answered=true; renderStudy(); }
+function checkTest(){ const inp=document.getElementById('typeAns'); const val=inp?inp.value:''; const w=WORD_BY_ID[test.queue[test.i]]; test.typed=val; test.verdict=gradeTyped(val,w); if(test.verdict!=='wrong') test.correct++; else { test.wrong++; test.missed.push(test.queue[test.i]); } test.answered=true; renderStudy(); }
 function nextTest(){ test.answered=false; test.typed=''; test.verdict=null; test.i++; renderStudy(); }
 function endTest(){ test=null; showScreen('home'); }
 function normalizeAnswer(s){ return String(s||'').toLowerCase().trim().replace(/^(der|die|das)\s+/,'').replace(/[.!?,;:"'„"]/g,'').replace(/\s+/g,' ').trim(); }
