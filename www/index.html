@@ -6655,6 +6655,8 @@ function renderHome(){
   const goal=s.settings.dailyGoal||10;
   const name=(s.profile&&s.profile.name)||'';
   const lvl=s.currentLevel||'A2';
+  const learnedTodayN=[...new Set([...(day.new||[]),...day.reviewed.map(r=>r.id)])].filter(id=>WORD_BY_ID[id]).length;
+  const learnedAllN=Object.keys(s.progress||{}).filter(id=>WORD_BY_ID[id]).length;
   const app=document.getElementById('screen-home');
   app.innerHTML=`
     <div class="section-head"><div><h1 class="title">Hallo${name?', '+name:''} 👋</h1><div class="sub">${fmtDateLong(today())} · ${levelLabel(lvl)}</div></div><button class="icon-gear" onclick="showScreen('settings')" aria-label="Settings">⚙️</button></div>
@@ -6672,8 +6674,10 @@ function renderHome(){
       ${pending>0
         ? `<button class="btn full" onclick="showScreen('study')">${pendingReview&&!pendingNew?'Start reviews':'Continue studying'} (${pending})</button>`
         : `<button class="btn full" onclick="addMoreWords()">➕ Learn ${goal} new words</button>`}
+      ${learnedTodayN>0 ? `<div style="height:10px"></div><button class="btn ghost full" onclick="openTestChooser('today')">🧪 Test today's ${learnedTodayN} word${learnedTodayN!==1?'s':''}</button>` : ''}
     </div>
     ${pending===0 ? `<div class="sub" style="text-align:center;margin-top:4px">Got time? Add another set whenever you like.</div>` : ''}
+    ${learnedAllN>0 ? `<div class="game-tile" style="margin-top:14px" onclick="openTestChooser('all')"><div class="gi q">🧪</div><div><div class="gt">Test your learnings so far</div><div class="gd">Quiz yourself on all ${learnedAllN} word${learnedAllN!==1?'s':''} you've learned — Type or Listen.</div></div></div>` : ''}
     ${activityHeatmap()}
     ${storiesForLevel(storyLevel()).length ? `<div class="game-tile" style="margin-top:14px" onclick="showScreen('stories')"><div class="gi q">📕</div><div><div class="gt">Geschichte des Tages</div><div class="gd">Today's ${storyLevel()} story — read, listen &amp; quiz yourself</div></div></div>` : ''}
     ${(typeof THEMES!=='undefined'&&THEMES.length) ? `<div class="game-tile" style="margin-top:14px" onclick="showScreen('themes')"><div class="gi b">🗂️</div><div><div class="gt">Themen-Wortschatz</div><div class="gd">Phrasebook — ${THEMES.reduce((n,t)=>n+t.words.length,0)} words by topic (transport, health…)</div></div></div>` : ''}
@@ -6773,9 +6777,9 @@ function renderTest(el){
         <div class="big">${pct>=0.8?'🌟':pct>=0.5?'👍':'💪'}</div>
         <h2 class="serif" style="font-size:26px;margin:10px 0 6px">You got ${test.correct} / ${n}</h2>
         <div class="sub" style="margin-bottom:20px">${test.mode==='type'?'Typing':'Listening'} test complete.</div>
-        <button class="btn full" onclick="startTest('${other}')">${other==='type'?'⌨️ Try the Type test':'🎧 Try the Listen test'}</button>
+        <button class="btn full" onclick="restartTest('${other}')">${other==='type'?'⌨️ Try the Type test':'🎧 Try the Listen test'}</button>
         <div style="height:10px"></div>
-        <button class="btn ghost full" onclick="startTest('${test.mode}')">🔁 Repeat this test</button>
+        <button class="btn ghost full" onclick="restartTest('${test.mode}')">🔁 Repeat this test</button>
         <div style="height:10px"></div>
         <button class="btn ghost full" onclick="endTest()">✓ Finish</button>
       </div>`;
@@ -6829,7 +6833,13 @@ function flipStudy(){
 }
 function doRate(result){ rateWord(session.queue[session.i].id, result); session.i++; renderStudy(); }
 /* ===== Self-test flow — Type & Listen (learning stays flip-only) ===== */
-function startTest(mode){ const ids=(session?session.queue.map(q=>q.id):[]).filter(id=>WORD_BY_ID[id]); test={ mode, queue:ids, i:0, answered:false, typed:'', verdict:null, correct:0, wrong:0 }; renderStudy(); }
+function runTest(mode, ids){ ids=(ids||[]).filter(id=>WORD_BY_ID[id]); if(!ids.length){ toast('No words to test yet'); return; } showScreen('study'); test={ mode, queue:ids.slice(), i:0, answered:false, typed:'', verdict:null, correct:0, wrong:0 }; renderStudy(); }
+function startTest(mode){ runTest(mode, session?session.queue.map(q=>q.id):[]); }        // post-learning: this session's words
+function restartTest(mode){ runTest(mode, test?test.queue.slice():[]); }                    // repeat/other — reuse the same set
+function learnedTodayIds(){ const s=DB.get(), d=s.days[todayKey()]||{new:[],reviewed:[]}; const set=new Set(); (d.new||[]).forEach(id=>set.add(id)); (d.reviewed||[]).forEach(r=>set.add(r&&r.id)); return [...set].filter(id=>WORD_BY_ID[id]); }
+function learnedAllIds(){ return Object.keys(DB.get().progress||{}).filter(id=>WORD_BY_ID[id]); }
+function openTestChooser(which){ const ids=which==='all'?learnedAllIds():learnedTodayIds(); const n=ids.length; if(!n){ toast(which==='all'?'Learn some words first':'Study some words today first'); return; } const title=which==='all'?"Test your learnings so far":"Test today's words"; showModal(`<h2>🧪 ${title}</h2><div class="lead">${n} word${n!==1?'s':''} — a self-check; this won't change your review schedule.</div><button class="btn full" onclick="chooseTest('${which}','type')">⌨️ Type test</button><div style="height:10px"></div><button class="btn full" onclick="chooseTest('${which}','listen')">🎧 Listen test</button><div style="height:10px"></div><button class="btn ghost full" onclick="closeModal()">Cancel</button>`); }
+function chooseTest(which, mode){ closeModal(); runTest(mode, which==='all'?learnedAllIds():learnedTodayIds()); }
 function checkTest(){ const inp=document.getElementById('typeAns'); const val=inp?inp.value:''; const w=WORD_BY_ID[test.queue[test.i]]; test.typed=val; test.verdict=gradeTyped(val,w); if(test.verdict!=='wrong') test.correct++; else test.wrong++; test.answered=true; renderStudy(); }
 function nextTest(){ test.answered=false; test.typed=''; test.verdict=null; test.i++; renderStudy(); }
 function endTest(){ test=null; showScreen('home'); }

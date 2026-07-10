@@ -24,6 +24,7 @@ const NAMES = ['WORDS','WORDS_A1','WORDS_B1','WORDLISTS','THEMES','THEME_WORDS',
   'totalLearned','buildSession','storiesForLevel','storyLevel','rotationFor','reindexCustomWords',
   'shuffle','themeByKey','activityData','activityHeatmap','applyTheme','setTheme',
   'gradeTyped','normalizeAnswer','levenshtein','migrateProg','startTest','checkTest','nextTest','endTest','getTest',
+  'runTest','restartTest','learnedTodayIds','learnedAllIds','openTestChooser','chooseTest',
   'reminderNotification','reminderTimeParts','applyReminder','autoBackup','setReminderEnabled','setReminderTime','setAutoBackup','notifPlugin','fsPlugin','restoreAutoBackup','dictccUrl','openDictcc','browserPlugin'];
 scriptSrc += '\n;globalThis.__APP__={};' + NAMES.map(n =>
   `try{globalThis.__APP__[${JSON.stringify(n)}]=${n};}catch(e){}`).join('');
@@ -314,6 +315,13 @@ test('PREP-05','Word Lists','Preposition homographs kept their real type (der Da
 test('DICT-01','Word Lists','dictccUrl builds an encoded dict.cc search on the German word', ()=>{ assert(A.dictccUrl({type:'verb',w:'gehen'})==='https://www.dict.cc/?s=gehen','verb'); assert(A.dictccUrl({type:'noun',base:'Haus',art:'das'})==='https://www.dict.cc/?s=Haus','noun uses base'); assert(/%C3%BCr$/.test(A.dictccUrl({type:'other',w:'für'})),'umlaut encoded'); return true; });
 test('DICT-02','Word Lists','dict.cc links appear in All Words, flashcard, Review and phrasebook', ()=> /openDictcc\(/.test(HTML) && /www\.dict\.cc/.test(HTML) && (HTML.match(/class="dictcc-link"/g)||[]).length>=4);
 test('DICT-03','Word Lists','Opens via the in-app Browser plugin, with a safe web fallback', ()=>{ assert(!!pkg.dependencies['@capacitor/browser'],'@capacitor/browser not declared'); A.openDictcc('https://www.dict.cc/?s=x'); return true; });
+
+/* =========================================================
+   24. HOME TEST ENTRY POINTS (test today / test all)
+   ========================================================= */
+atest('HT-01','Home Test','learnedTodayIds + learnedAllIds return the studied words', async ()=>{ await profile('ht1'); DB.setLevel('A1'); A.pullNewBatch(4); assert(A.learnedTodayIds().length===4,'today='+A.learnedTodayIds().length); assert(A.learnedAllIds().length===4,'all='+A.learnedAllIds().length); });
+test('HT-02','Home Test','Home offers "Test today\'s words" and "Test your learnings so far"', ()=> /openTestChooser\('today'\)/.test(HTML) && /openTestChooser\('all'\)/.test(HTML) && /Test your learnings so far/.test(HTML));
+atest('HT-03','Home Test','runTest builds a test from a given word set without changing the SRS', async ()=>{ await profile('ht3'); DB.setLevel('A1'); A.pullNewBatch(3); const ids=A.learnedAllIds(); assert(ids.length===3,'ids='+ids.length); const before=JSON.stringify(DB.get().progress[ids[0]]); A.runTest('type', ids); const t=A.getTest(); assert(t && t.mode==='type' && t.queue.length===ids.length,'test not built'); A.checkTest(); assert(JSON.stringify(DB.get().progress[ids[0]])===before,'SRS changed by the test'); });
 
 /* =========================================================
    run async tests, then report
