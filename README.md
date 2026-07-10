@@ -1,5 +1,19 @@
 # Deutsch Wortschatz — German Vocabulary App (A1–B1)
 
+## ▶️ Try it & share
+
+**Open in any browser — no install, no sign-up:** **https://sudheshnar.github.io/deutsch-wortschatz/**
+
+<p align="center">
+  <img src="docs/wortschatz_qr.png" alt="QR code — open Deutsch Wortschatz" width="200">
+</p>
+
+Scan the QR (or open the link) → on a phone, tap **Share → Add to Home Screen** for an app icon. It works **offline** after the first load. There's also a ready-to-post [share card](docs/wortschatz_share_card.png).
+
+> **Copy-paste blurb:** *Deutsch Wortschatz — a free German vocabulary app (A1–B1): flashcards with spaced repetition, Type & Listen practice, a themed phrasebook, daily stories with audio, and games. Works offline, no sign-up.* https://sudheshnar.github.io/deutsch-wortschatz/
+
+---
+
 **Quick links**
 
 | I want to… | See |
@@ -7,7 +21,7 @@
 | Install on an iPhone (step by step) | [`docs/Deutsch_Wortschatz_iPhone_Install_Guide.pdf`](docs/Deutsch_Wortschatz_iPhone_Install_Guide.pdf) |
 | Read the product spec | [`docs/PRD.md`](docs/PRD.md) |
 | Read the technical design | [`docs/TDD.md`](docs/TDD.md) |
-| Read the test report (110/110 passing) | [`docs/TEST_REPORT.md`](docs/TEST_REPORT.md) |
+| Read the test report (118/118 passing) | [`docs/TEST_REPORT.md`](docs/TEST_REPORT.md) |
 | See the content-quality audit | [`docs/CONTENT_AUDIT.md`](docs/CONTENT_AUDIT.md) |
 | Run the automated tests / audit | `npm test` · `npm run audit` |
 | CI (tests + Android build + web deploy) | GitHub Actions — `.github/workflows/` |
