@@ -87,7 +87,12 @@ nav button.active{color:var(--accent)}
 .fc-en{font-family:'Fraunces',serif;font-size:28px;font-weight:600;line-height:1.15}
 .fc-ex{font-size:15px;color:var(--dim);font-style:italic;line-height:1.5;border-top:1px solid var(--line);padding-top:13px;margin-top:2px}
 .fc-badge{font-size:11px;font-weight:700;padding:3px 9px;border-radius:8px;background:rgba(157,141,255,.16);color:var(--verb)}
-.lvl-badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:7px;background:rgba(255,206,92,.15);color:var(--warn);letter-spacing:.3px;vertical-align:middle;margin-left:5px}
+.lvl-badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:7px;background:rgba(138,144,166,.16);color:var(--dim);letter-spacing:.3px;vertical-align:middle;margin-left:5px}
+.lvl-badge.lvl-A1{background:rgba(90,209,168,.18);color:var(--noun)}
+.lvl-badge.lvl-A2{background:rgba(255,206,92,.18);color:var(--warn)}
+.lvl-badge.lvl-B1{background:rgba(157,141,255,.18);color:var(--verb)}
+.lvl-badge.lvl-B2{background:rgba(255,126,168,.18);color:var(--other)}
+.lvl-badge.lvl-C1{background:rgba(111,179,255,.18);color:#6fb3ff}
 .speak-btn{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:50%;background:rgba(90,209,168,.14);border:1.5px solid rgba(90,209,168,.4);color:var(--accent);font-size:20px;cursor:pointer;transition:transform .12s;flex-shrink:0}
 .speak-btn:active{transform:scale(.9)}
 .speak-sm{width:34px;height:34px;font-size:16px}
@@ -6697,6 +6702,7 @@ function addMoreWords(){
   buildSession(); showScreen('study');
 }
 
+function levelBadge(w){ const cur=DB.get().currentLevel; const lv=(w&&w.level)||(isPseudoLevel(cur)?'':cur); return /^(A1|A2|B1|B2|C1)$/.test(lv||'')?`<span class="lvl-badge lvl-${lv}">${lv}</span>`:''; }
 let test=null; // active self-test (type/listen) — kept separate from learning (flip)
 function getTest(){ return test; }
 function renderStudy(){
@@ -6746,7 +6752,7 @@ function renderStudy(){
     <div class="fc-wrap">
       <div class="fc" id="fc" onclick="flipStudy()">
         <div class="fc-face fc-front">
-          <div class="fc-top"><span class="pill ${w.type}">${w.type}</span>${item.kind==='review'?'<span class="fc-badge">review</span>':'<span style="font-size:12px;color:var(--dim)">new</span>'}${w.level==='A1'?'<span class="lvl-badge">A1</span>':''}</div>
+          <div class="fc-top"><span class="pill ${w.type}">${w.type}</span>${item.kind==='review'?'<span class="fc-badge">review</span>':'<span style="font-size:12px;color:var(--dim)">new</span>'}${levelBadge(w)}</div>
           <div class="fc-center">
             ${w.type==='noun'?`<div class="fc-art">${art}</div>`:''}
             <div class="fc-word">${germanOf(w)}</div>
@@ -6793,7 +6799,7 @@ function renderTest(el){
   const w=WORD_BY_ID[test.queue[test.i]];
   const art = w.type==='noun' ? `<span class="art-${w.art}">${w.art}</span>` : '';
   const head=`
-    <div class="section-head"><div><h1 class="title">${test.mode==='type'?'⌨️ Type test':'🎧 Listen test'}</h1><div class="sub">Testing what you learned</div></div></div>
+    <div class="section-head"><div><h1 class="title">${test.mode==='type'?'⌨️ Type test':'🎧 Listen test'}</h1><div class="sub">Testing what you learned</div></div><button class="icon-gear" onclick="endTest()" aria-label="Exit test">✕</button></div>
     <div class="study-prog">Question ${test.i+1} of ${test.queue.length} · Score ${test.correct}</div>`;
   if(!test.answered){
     const prompt = test.mode==='listen'
@@ -7128,7 +7134,7 @@ function renderWordList(){
     const art=w.type==='noun'?`<span class="art-tag art-${w.art}">${w.art}</span> `:'';
     let badge='';
     if(p&&p.lastSeen!==null){ badge=`<span class="progress-chip pc-review">learning</span>`; }
-    const lvlBadge=w.level==='A1'?'<span class="lvl-badge">A1</span>':'';
+    const lvlBadge=levelBadge(w);
     return `<div class="wl-item">
       <div class="wl-head"><div class="wl-de">${art}${germanOf(w)} ${badge}${lvlBadge}</div>
         <div style="display:flex;align-items:center;gap:8px"><button class="speak-btn speak-sm" onclick="speakWord(WORD_BY_ID['${id}'],event)" aria-label="Hear">🔊</button><span class="pill ${w.type}">${w.type}</span></div></div>
@@ -7143,7 +7149,7 @@ function renderWordList(){
 function reviewWordRow(id, sub){
   const w=WORD_BY_ID[id]; if(!w) return '';
   const art=w.type==='noun'?`<span class="art-tag art-${w.art}">${w.art}</span> `:'';
-  const lvlBadge=w.level==='A1'?'<span class="lvl-badge">A1</span>':'';
+  const lvlBadge=levelBadge(w);
   return `<div class="wl-item">
     <div class="wl-head"><div class="wl-de">${art}${germanOf(w)} ${lvlBadge}</div>
       <div style="display:flex;align-items:center;gap:8px"><button class="speak-btn speak-sm" onclick="speakWord(WORD_BY_ID['${id}'],event)" aria-label="Hear">🔊</button><span class="pill ${w.type}">${w.type}</span></div></div>
