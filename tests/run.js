@@ -24,7 +24,7 @@ const NAMES = ['WORDS','WORDS_A1','WORDS_B1','WORDLISTS','THEMES','THEME_WORDS',
   'totalLearned','buildSession','storiesForLevel','storyLevel','rotationFor','reindexCustomWords',
   'shuffle','themeByKey','activityData','activityHeatmap','applyTheme','setTheme',
   'gradeTyped','normalizeAnswer','levenshtein','migrateProg','startTest','checkTest','nextTest','endTest','getTest',
-  'runTest','restartTest','retryMissed','learnedTodayIds','learnedAllIds','openTestChooser','chooseTest',
+  'runTest','restartTest','retryMissed','learnedTodayIds','learnedAllIds','openTestChooser','chooseTest','levelBadge',
   'reminderNotification','reminderTimeParts','applyReminder','autoBackup','setReminderEnabled','setReminderTime','setAutoBackup','notifPlugin','fsPlugin','restoreAutoBackup','dictccUrl','openDictcc','browserPlugin'];
 scriptSrc += '\n;globalThis.__APP__={};' + NAMES.map(n =>
   `try{globalThis.__APP__[${JSON.stringify(n)}]=${n};}catch(e){}`).join('');
@@ -323,6 +323,13 @@ atest('HT-01','Home Test','learnedTodayIds + learnedAllIds return the studied wo
 test('HT-02','Home Test','Home offers "Test today\'s words" and "Test your learnings so far"', ()=> /openTestChooser\('today'\)/.test(HTML) && /openTestChooser\('all'\)/.test(HTML) && /Test your learnings so far/.test(HTML));
 atest('HT-03','Home Test','runTest builds a test from a given word set without changing the SRS', async ()=>{ await profile('ht3'); DB.setLevel('A1'); A.pullNewBatch(3); const ids=A.learnedAllIds(); assert(ids.length===3,'ids='+ids.length); const before=JSON.stringify(DB.get().progress[ids[0]]); A.runTest('type', ids); const t=A.getTest(); assert(t && t.mode==='type' && t.queue.length===ids.length,'test not built'); A.checkTest(); assert(JSON.stringify(DB.get().progress[ids[0]])===before,'SRS changed by the test'); });
 atest('HT-04','Home Test','Missed words are tracked and retryMissed re-tests only them', async ()=>{ await profile('ht4'); DB.setLevel('A1'); A.pullNewBatch(3); const ids=A.learnedAllIds(); A.runTest('type', ids); A.checkTest(); assert(A.getTest().missed.length===1 && A.getTest().missed[0]===ids[0],'missed not tracked'); A.nextTest(); A.checkTest(); A.nextTest(); A.checkTest(); A.nextTest(); const t=A.getTest(); assert(t.i>=t.queue.length,'not at results'); assert(t.missed.length===3,'missed='+t.missed.length); A.retryMissed(); const t2=A.getTest(); assert(t2.queue.length===3 && t2.i===0,'retry set not built'); });
+
+/* =========================================================
+   25. LEVEL BADGES + TEST EXIT (fixes)
+   ========================================================= */
+atest('LV-01','Word Lists','Level badge shows the word\'s level, or the current level when untagged', async ()=>{ await profile('lv1'); DB.setLevel('A2'); assert(/A1/.test(A.levelBadge({level:'A1'})),'A1 tag'); assert(/A2/.test(A.levelBadge({})),'A2 fallback for untagged word'); assert(/B1/.test(A.levelBadge({level:'B1'})),'B1 tag'); DB.setLevel('B1'); assert(/B1/.test(A.levelBadge({})),'B1 fallback'); });
+test('LV-02','Word Lists','Study/Browse/Review use levelBadge (A1/A2/B1), not only an A1 badge', ()=> (HTML.match(/levelBadge\(w\)/g)||[]).length>=3 && !/w\.level===.A1.\?.<span class="lvl-badge">A1/.test(HTML) && /\.lvl-badge\.lvl-B1/.test(HTML));
+test('EX-01','Study Test','The test screen has an exit control', ()=> /aria-label="Exit test"/.test(HTML));
 
 /* =========================================================
    run async tests, then report
